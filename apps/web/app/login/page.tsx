@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MagicLinkForm } from './magic-link-form';
 
 type LoginPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -17,11 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <main style={{ fontFamily: 'Arial, sans-serif', margin: '3rem auto', maxWidth: 560 }}>
       <h1>Sign in</h1>
       <p>Use an email magic link to access your Kokoro Presence account.</p>
-      <form method="post" action="/api/auth/signin/email" style={{ display: 'grid', gap: '0.75rem' }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" required />
-        <button type="submit">Send magic link</button>
-      </form>
+      <MagicLinkForm />
       {sent ? <p>Check your inbox for a login link.</p> : null}
       {error ? <p>Unable to sign in right now: {error}</p> : null}
       <p>
