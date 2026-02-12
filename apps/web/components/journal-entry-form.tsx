@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { useToast } from './ui/toast';
+import { formatRetryHint, parseApiError } from '../lib/client/http';
 
 export function JournalEntryForm() {
   const router = useRouter();
@@ -18,27 +19,35 @@ export function JournalEntryForm() {
     setError(null);
     setIsSaving(true);
 
-    const response = await fetch('/api/journal', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content }),
-    });
+    try {
+      const response = await fetch('/api/journal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
 
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      const message = payload.error ?? 'Unable to save entry';
+      if (!response.ok) {
+        const apiError = await parseApiError(response, 'Unable to save entry right now.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        const message = retryHint ? `${apiError.message} ${retryHint}` : apiError.message;
+        setError(message);
+        pushToast(message, 'error');
+        setIsSaving(false);
+        return;
+      }
+
+      setContent('');
+      setIsSaving(false);
+      pushToast('Journal entry saved.');
+      router.refresh();
+    } catch {
+      const message = 'Network issue while saving. Please retry in a moment.';
       setError(message);
       pushToast(message, 'error');
       setIsSaving(false);
-      return;
     }
-
-    setContent('');
-    setIsSaving(false);
-    pushToast('Journal entry saved.');
-    router.refresh();
   }
 
   return (

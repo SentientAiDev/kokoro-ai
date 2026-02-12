@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useToast } from './ui/toast';
+import { formatRetryHint, parseApiError } from '../lib/client/http';
 
 type Suggestion = {
   id: string;
@@ -19,16 +20,26 @@ type Suggestion = {
 export function CheckInBanner() {
   const { pushToast } = useToast();
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const response = await fetch('/api/check-ins/suggestions');
+    setError(null);
 
-    if (!response.ok) {
-      return;
+    try {
+      const response = await fetch('/api/check-ins/suggestions');
+
+      if (!response.ok) {
+        const apiError = await parseApiError(response, 'Unable to load check-in suggestions.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        setError(retryHint ? `${apiError.message} ${retryHint}` : apiError.message);
+        return;
+      }
+
+      const data = (await response.json()) as { suggestions: Suggestion[] };
+      setSuggestion(data.suggestions[0] ?? null);
+    } catch {
+      setError('Network issue while loading check-ins. Please retry.');
     }
-
-    const data = (await response.json()) as { suggestions: Suggestion[] };
-    setSuggestion(data.suggestions[0] ?? null);
   }
 
   useEffect(() => {
@@ -40,27 +51,39 @@ export function CheckInBanner() {
       return;
     }
 
-    const response = await fetch(`/api/check-ins/suggestions/${suggestion.id}/action`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ action }),
-    });
+    try {
+      const response = await fetch(`/api/check-ins/suggestions/${suggestion.id}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
 
-    if (!response.ok) {
-      pushToast('Unable to apply action.', 'error');
-      return;
+      if (!response.ok) {
+        const apiError = await parseApiError(response, 'Unable to apply action.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        pushToast(retryHint ? `${apiError.message} ${retryHint}` : apiError.message, 'error');
+        return;
+      }
+
+      pushToast('Check-in updated.');
+      await load();
+    } catch {
+      pushToast('Network issue while updating check-ins. Please retry.', 'error');
     }
-
-    pushToast('Check-in updated.');
-    await load();
   }
 
   if (!suggestion) {
     return (
-      <Card className="text-sm text-muted-foreground">
-        No active check-in suggestions right now. We&apos;ll surface one if a configured trigger appears.
+      <Card className="space-y-2 text-sm text-muted-foreground">
+        {error ? <p className="m-0 text-red-700">{error}</p> : null}
+        <p className="m-0">No active check-in suggestions right now. We&apos;ll surface one if a configured trigger appears.</p>
+        {error ? (
+          <Button type="button" variant="outline" onClick={() => void load()}>
+            Retry
+          </Button>
+        ) : null}
       </Card>
     );
   }
