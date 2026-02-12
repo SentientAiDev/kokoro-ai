@@ -1,5 +1,4 @@
-import { runEpisodicMemoryPipeline } from './episodic-memory-pipeline';
-import { prisma } from './prisma';
+import { JournalService } from './application/journal-service';
 
 export type JournalEntryListItem = {
   id: string;
@@ -7,82 +6,26 @@ export type JournalEntryListItem = {
   createdAt: Date;
 };
 
-type JournalEntryDetail = JournalEntryListItem & {
-  updatedAt: Date;
-};
-
-type JournalDb = {
-  user: {
-    findUnique(args: {
-      where: { email: string };
-      select: { id: true };
-    }): Promise<{ id: string } | null>;
-  };
-  journalEntry: {
-    create(args: { data: { userId: string; content: string } }): Promise<JournalEntryListItem>;
-    findMany(args: {
-      where: { userId: string };
-      orderBy: { createdAt: 'desc' };
-      select: { id: true; content: true; createdAt: true };
-    }): Promise<JournalEntryListItem[]>;
-    findFirst(args: {
-      where: { id: string; userId: string };
-      select: { id: true; content: true; createdAt: true; updatedAt: true };
-    }): Promise<JournalEntryDetail | null>;
-  };
-};
-
-const db = prisma as unknown as JournalDb;
-
 export async function getUserIdByEmail(email: string) {
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
-  return user?.id ?? null;
+  return JournalService.getUserIdByEmail(email);
 }
 
 export async function createJournalEntry(userId: string, content: string) {
-  const journalEntry = await db.journalEntry.create({
-    data: {
-      userId,
-      content,
-    },
-  });
-
-  await runEpisodicMemoryPipeline({
-    userId,
-    journalEntryId: journalEntry.id,
-    content: journalEntry.content,
-  });
-
-  return journalEntry;
+  return JournalService.createEntry(userId, content);
 }
 
 export async function listJournalEntries(userId: string): Promise<JournalEntryListItem[]> {
-  return db.journalEntry.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      content: true,
-      createdAt: true,
-    },
-  });
+  return JournalService.listEntries(userId);
 }
 
 export async function getJournalEntryById(id: string, userId: string) {
-  return db.journalEntry.findFirst({
-    where: {
-      id,
-      userId,
-    },
-    select: {
-      id: true,
-      content: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
+  return JournalService.getEntryById(id, userId);
+}
+
+export async function updateJournalEntry(id: string, userId: string, content: string) {
+  return JournalService.updateEntry(id, userId, content);
+}
+
+export async function deleteJournalEntry(id: string, userId: string) {
+  return JournalService.deleteEntry(id, userId);
 }

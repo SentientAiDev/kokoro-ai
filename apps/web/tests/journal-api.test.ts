@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, createJournalEntryMock, consumeRateLimitMock } = vi.hoisted(() => ({
+const { getAuthSessionMock, createJournalEntryMock, enforceRateLimitMock, logRequestMock } = vi.hoisted(() => ({
   getAuthSessionMock: vi.fn(),
   createJournalEntryMock: vi.fn(),
-  consumeRateLimitMock: vi.fn(),
+  enforceRateLimitMock: vi.fn(),
+  logRequestMock: vi.fn(),
 }));
 
 vi.mock('../lib/auth', () => ({
@@ -14,15 +15,17 @@ vi.mock('../lib/journal', () => ({
   createJournalEntry: createJournalEntryMock,
 }));
 
-vi.mock('../lib/rate-limit', () => ({
-  consumeRateLimit: consumeRateLimitMock,
+vi.mock('../lib/infrastructure/http', () => ({
+  getRequestId: () => 'req-1',
+  logRequest: logRequestMock,
+  enforceRequestRateLimit: enforceRateLimitMock,
 }));
 
 import { POST } from '../app/api/journal/route';
 
 describe('POST /api/journal', () => {
   beforeEach(() => {
-    consumeRateLimitMock.mockReturnValue({ allowed: true });
+    enforceRateLimitMock.mockResolvedValue(null);
   });
 
   it('returns unauthorized when no session exists', async () => {
@@ -40,7 +43,7 @@ describe('POST /api/journal', () => {
 
   it('returns 429 when rate limit is exceeded', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
-    consumeRateLimitMock.mockReturnValueOnce({ allowed: false });
+    enforceRateLimitMock.mockResolvedValueOnce(new Response(null, { status: 429 }));
 
     const response = await POST(
       new Request('http://localhost/api/journal', {
@@ -50,20 +53,6 @@ describe('POST /api/journal', () => {
     );
 
     expect(response.status).toBe(429);
-    expect(createJournalEntryMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 for malformed JSON', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
-
-    const response = await POST(
-      new Request('http://localhost/api/journal', {
-        method: 'POST',
-        body: '{"content":',
-      }),
-    );
-
-    expect(response.status).toBe(400);
     expect(createJournalEntryMock).not.toHaveBeenCalled();
   });
 

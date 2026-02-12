@@ -2,17 +2,49 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthSession } from '../../../../../../lib/auth';
 import { applyCheckInSuggestionAction } from '../../../../../../lib/check-ins';
+import {
+  enforceRequestRateLimit,
+  getRequestId,
+  logRequest,
+} from '../../../../../../lib/infrastructure/http';
 
-const actionSchema = z.object({
-  action: z.enum(['dismiss', 'snooze', 'done']),
-  snoozeDays: z.number().int().min(1).max(30).optional(),
-});
+const paramsSchema = z.object({ id: z.string().cuid() });
+
+const actionSchema = z
+  .object({
+    action: z.enum(['dismiss', 'snooze', 'done']),
+    snoozeDays: z.number().int().min(1).max(30).optional(),
+  })
+  .refine((data) => (data.action === 'snooze' ? Boolean(data.snoozeDays) : true), {
+    message: 'snoozeDays is required when action is snooze',
+    path: ['snoozeDays'],
+  });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const requestId = getRequestId(request);
   const session = await getAuthSession();
+  logRequest(request, requestId, session?.user?.id);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const parsedParams = paramsSchema.safeParse(await params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: 'Invalid suggestion id' }, { status: 400 });
+  }
+
+  const rateLimitedResponse = await enforceRequestRateLimit({
+    request,
+    requestId,
+    key: `checkin:action:${session.user.id}`,
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
+
+  if (rateLimitedResponse) {
+    return rateLimitedResponse;
   }
 
   let body: unknown;
@@ -32,11 +64,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  const { id } = await params;
-
   const suggestion = await applyCheckInSuggestionAction({
     userId: session.user.id,
-    suggestionId: id,
+    suggestionId: parsedParams.data.id,
     action: parsed.data.action,
     snoozeDays: parsed.data.snoozeDays,
   });

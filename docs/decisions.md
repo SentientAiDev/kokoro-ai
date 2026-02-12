@@ -1,26 +1,16 @@
-# Decisions (ADR-lite)
+# Decisions log
 
-- 0001: Use pnpm workspaces with `apps/web` and `packages/shared` for a simple TypeScript monorepo bootstrap.
-- 0002: Use Next.js App Router for the web app and future API routes in the same runtime.
-- 0003: Keep linting and formatting at repository root with ESLint + Prettier for consistent standards.
-- 0004: Use Vitest for unit tests and Playwright for a minimal smoke test baseline.
-- 0005: Add a GitHub Actions CI workflow that runs lint, typecheck, and unit tests.
-- 0006: Use Postgres (Docker Compose) + Prisma schema/migrations under `apps/web/prisma` to keep database concerns colocated with the Next.js app for MVP speed.
-- 0007: Harden CI/restricted-env behavior by using a GitHub Actions Postgres service container, running `prisma migrate deploy` against `DATABASE_URL`, and supporting `PRISMA_SKIP_GENERATE=1` so lint/typecheck/test can run when Prisma client generation is unavailable.
+## 2026-10-16 — T8 hardening implementation
 
-- 0008: Implement auth with NextAuth email magic links and Prisma Adapter for the fastest MVP-compatible, passwordless sign-in flow.
-
-- 0009: Implement T4 episodic memory as a deterministic rule-based pipeline (keyword topic extraction + open-loop heuristics) triggered immediately after journal entry creation, with audit logging for each generated summary.
-
-- 0010: Enforce idempotent episodic-memory writes by skipping unchanged summary updates/audit logs to prevent duplicate writes during retries.
-- 0011: Add lightweight per-user in-memory rate limiting on journal write API (`POST /api/journal`) as a simple MVP abuse-control default.
-- 0012: Treat `apps/web/prisma/schema.prisma` as the canonical data model and require committed migrations to match schema changes, documented in root setup instructions.
-
-## 2026-10-15 — T7 proactive check-ins implementation defaults
-- Proactive check-ins remain OFF by default for every user.
-- Scheduler only creates in-app `CheckInSuggestion` rows; it never sends push or email.
-- Suggestion generation uses two deterministic signals:
-  - open loops from recent (7-day) episodic summaries
-  - journaling inactivity threshold (default 3 days)
-- Frequency cap is enforced per UTC day (`checkInMaxPerDay`, default `1`).
-- Check-in actions (`dismiss`, `snooze`, `done`) are fully audit logged.
+- Adopted a layered architecture split:
+  - presentation (`app/`, `components/`)
+  - application (`lib/application/*`)
+  - domain (`lib/domain/*`)
+  - infrastructure (`lib/infrastructure/*`)
+- Centralized memory behavior in `MemoryService` to avoid direct memory-table access from routes.
+- Introduced event-driven journal flow: journal create emits an event consumed by memory generation.
+- Chose fixed-window rate limiting as the default with optional Upstash backend behind env flag,
+  to keep local dev simple while allowing distributed enforcement in production.
+- Added structured logging with shared redaction utility and unified error reporting hooks.
+- Added `AbuseReport` persistence model and `/api/abuse` endpoint with zod validation.
+- Added baseline security headers via Next.js middleware.
