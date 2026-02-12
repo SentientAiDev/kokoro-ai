@@ -9,6 +9,10 @@ export default defineConfig({
   },
   webServer: {
     command: 'pnpm --filter web dev --hostname 0.0.0.0 --port 3000',
+    env: {
+      ...process.env,
+      TEST_AUTH_EMAIL: process.env.TEST_AUTH_EMAIL ?? 'demo@kokoro.local',
+    },
     port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
