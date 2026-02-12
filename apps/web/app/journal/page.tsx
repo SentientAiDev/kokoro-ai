@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getAuthSession } from '../../lib/auth';
 import { JournalEntryForm } from '../../components/journal-entry-form';
 import { getUserIdByEmail, listJournalEntries } from '../../lib/journal';
+import { CheckInBanner } from '../../components/check-in-banner';
 
 export default async function JournalPage() {
   const session = await getAuthSession();
@@ -22,6 +23,7 @@ export default async function JournalPage() {
   return (
     <main style={{ fontFamily: 'Arial, sans-serif', margin: '3rem auto', maxWidth: 720 }}>
       <h1>Journal</h1>
+      <CheckInBanner />
       <JournalEntryForm />
       <h2 style={{ marginTop: '2rem' }}>Past entries</h2>
       {entries.length === 0 ? (

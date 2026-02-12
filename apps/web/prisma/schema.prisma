@@ -22,6 +22,7 @@ model User {
   preferenceMemories   PreferenceMemory[]
   auditLogs            AuditLog[]
   notificationSetting  NotificationSetting?
+  checkInSuggestions   CheckInSuggestion[]
 }
 
 model Account {
@@ -128,7 +129,34 @@ model NotificationSetting {
   quietHoursStartLocal  Int?
   quietHoursEndLocal    Int?
   timezone              String?
+  checkInWindowStart    String    @default("09:00")
+  checkInWindowEnd      String    @default("20:00")
+  checkInMaxPerDay      Int       @default(1)
+  checkInInactivityDays Int       @default(3)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum CheckInSuggestionStatus {
+  pending
+  dismissed
+  snoozed
+  done
+}
+
+model CheckInSuggestion {
+  id            String                  @id @default(cuid())
+  userId        String
+  message       String
+  why           String
+  reasonDetails Json
+  status        CheckInSuggestionStatus @default(pending)
+  snoozedUntil  DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, status, createdAt])
 }

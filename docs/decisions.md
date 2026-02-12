@@ -15,3 +15,12 @@
 - 0010: Enforce idempotent episodic-memory writes by skipping unchanged summary updates/audit logs to prevent duplicate writes during retries.
 - 0011: Add lightweight per-user in-memory rate limiting on journal write API (`POST /api/journal`) as a simple MVP abuse-control default.
 - 0012: Treat `apps/web/prisma/schema.prisma` as the canonical data model and require committed migrations to match schema changes, documented in root setup instructions.
+
+## 2026-10-15 — T7 proactive check-ins implementation defaults
+- Proactive check-ins remain OFF by default for every user.
+- Scheduler only creates in-app `CheckInSuggestion` rows; it never sends push or email.
+- Suggestion generation uses two deterministic signals:
+  - open loops from recent (7-day) episodic summaries
+  - journaling inactivity threshold (default 3 days)
+- Frequency cap is enforced per UTC day (`checkInMaxPerDay`, default `1`).
+- Check-in actions (`dismiss`, `snooze`, `done`) are fully audit logged.

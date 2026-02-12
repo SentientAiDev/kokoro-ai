@@ -1,0 +1,49 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getAuthSession } from '../../../../../../lib/auth';
+import { applyCheckInSuggestionAction } from '../../../../../../lib/check-ins';
+
+const actionSchema = z.object({
+  action: z.enum(['dismiss', 'snooze', 'done']),
+  snoozeDays: z.number().int().min(1).max(30).optional(),
+});
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getAuthSession();
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const parsed = actionSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
+
+  const { id } = await params;
+
+  const suggestion = await applyCheckInSuggestionAction({
+    userId: session.user.id,
+    suggestionId: id,
+    action: parsed.data.action,
+    snoozeDays: parsed.data.snoozeDays,
+  });
+
+  if (!suggestion) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  return NextResponse.json(suggestion, { status: 200 });
+}
