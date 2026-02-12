@@ -24,6 +24,7 @@ model User {
   notificationSetting  NotificationSetting?
   checkInSuggestions   CheckInSuggestion[]
   abuseReports         AbuseReport[]
+  feedbackMessages     FeedbackMessage[]
 }
 
 
@@ -175,4 +176,17 @@ model AbuseReport {
 
   @@index([userId, createdAt])
   @@index([category, createdAt])
+}
+
+model FeedbackMessage {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  message   String
+  page      String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
