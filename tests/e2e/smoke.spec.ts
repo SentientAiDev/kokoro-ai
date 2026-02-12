@@ -1,25 +1,33 @@
 import { expect, test } from '@playwright/test';
 
-test('recall flow smoke: create entry, recall, and delete memory', async ({ page }) => {
+test('proactive check-ins smoke: enable -> create -> show -> dismiss is audited', async ({ page, request }) => {
+  await page.goto('/account');
+
+  await page.getByLabel('Enable proactive check-ins').check();
+  await page.getByLabel('Max suggestions per day').fill('1');
+  await page.getByLabel('Inactivity threshold (days)').fill('1');
+  await page.getByRole('button', { name: 'Save proactive check-ins' }).click();
+
+  await expect(page.getByText('Saved proactive check-in settings.')).toBeVisible();
+
+  const entryContent = `Need to follow up on planning ${Date.now()}?`;
   await page.goto('/journal');
-
-  const content = `Plan sprint review ${Date.now()}`;
-  await page.getByLabel("Today's journal entry").fill(content);
+  await page.getByLabel("Today's journal entry").fill(entryContent);
   await page.getByRole('button', { name: 'Save entry' }).click();
+  await expect(page.getByText(entryContent)).toBeVisible();
 
-  await expect(page.getByText(content)).toBeVisible();
+  const schedulerResponse = await request.post('/api/check-ins/run-daily-job');
+  expect(schedulerResponse.ok()).toBeTruthy();
 
-  await page.goto('/recall');
-  await page.getByRole('searchbox', { name: 'Search memories' }).fill('sprint');
-  await page.getByRole('button', { name: 'Search' }).click();
+  await page.goto('/journal');
+  await expect(page.getByRole('heading', { name: 'Check-in suggestion' })).toBeVisible();
+  await expect(page.getByText(/Why this check-in\?/i)).toBeVisible();
 
-  await expect(page.getByText(/sprint/i).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(page.getByRole('heading', { name: 'Check-in suggestion' })).toHaveCount(0);
 
-  const firstDeleteButton = page.getByRole('button', { name: 'Delete' }).first();
-  page.once('dialog', async (dialog) => {
-    await dialog.accept();
-  });
-  await firstDeleteButton.click();
-
-  await expect(page.getByText(content)).toHaveCount(0);
+  const auditResponse = await request.get('/api/check-ins/audit');
+  expect(auditResponse.ok()).toBeTruthy();
+  const auditJson = (await auditResponse.json()) as { events: Array<{ action: string }> };
+  expect(auditJson.events.some((event) => event.action === 'checkin.dismissed')).toBeTruthy();
 });
