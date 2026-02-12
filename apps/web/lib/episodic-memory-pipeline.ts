@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { generateEpisodicSummary } from './episodic-summary';
+import { redactSensitiveText } from './sensitive-data';
 
 type PipelineDb = {
   episodicSummary: {
@@ -57,7 +58,12 @@ export async function runEpisodicMemoryPipeline(input: {
   journalEntryId: string;
   content: string;
 }) {
-  const result = generateEpisodicSummary(input.content);
+  const generatedResult = generateEpisodicSummary(input.content);
+  const result = {
+    summary: redactSensitiveText(generatedResult.summary),
+    topics: generatedResult.topics,
+    openLoops: generatedResult.openLoops.map((loop) => redactSensitiveText(loop)),
+  };
   const existingSummary = await db.episodicSummary.findUnique({
     where: { journalEntryId: input.journalEntryId },
     select: {
