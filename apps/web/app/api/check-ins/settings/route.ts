@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthSession } from '../../../../lib/auth';
 import { getCheckInSettings, updateCheckInSettings } from '../../../../lib/check-ins';
+import { enforceRateLimit } from '../../../../lib/api-security';
 
 const settingsSchema = z.object({
   proactiveCheckIns: z.boolean(),
@@ -28,6 +29,18 @@ export async function PUT(request: Request) {
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    key: `checkins:settings:${session.user.id}`,
+    scope: 'checkins.settings',
+    subjectId: session.user.id,
+    maxRequests: 10,
+    windowMs: 60_000,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   let body: unknown;

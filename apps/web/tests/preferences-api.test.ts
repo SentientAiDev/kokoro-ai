@@ -1,30 +1,30 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, writePreferenceMemoryMock, consumeRateLimitMock } = vi.hoisted(() => ({
+const { getAuthSessionMock, writePreferenceMemoryMock, enforceRateLimitMock } = vi.hoisted(() => ({
   getAuthSessionMock: vi.fn(),
   writePreferenceMemoryMock: vi.fn(),
-  consumeRateLimitMock: vi.fn(),
+  enforceRateLimitMock: vi.fn(),
 }));
 
 vi.mock('../lib/auth', () => ({
   getAuthSession: getAuthSessionMock,
 }));
 
-vi.mock('../lib/preference-memory', () => ({
-  writePreferenceMemory: writePreferenceMemoryMock,
+vi.mock('../lib/application/memory-service', () => ({
+  memoryService: {
+    writePreferenceMemory: writePreferenceMemoryMock,
+  },
 }));
 
-vi.mock('../lib/rate-limit', () => ({
-  consumeRateLimit: consumeRateLimitMock,
+vi.mock('../lib/api-security', () => ({
+  enforceRateLimit: enforceRateLimitMock,
+  handleApiError: (error: unknown) => Response.json({ error: String(error) }, { status: 500 }),
+  logApiRequest: vi.fn(),
 }));
 
 import { POST } from '../app/api/preferences/route';
 
 describe('POST /api/preferences', () => {
-  beforeEach(() => {
-    consumeRateLimitMock.mockReturnValue({ allowed: true });
-  });
-
   it('returns unauthorized when no session exists', async () => {
     getAuthSessionMock.mockResolvedValueOnce(null);
 
@@ -40,6 +40,7 @@ describe('POST /api/preferences', () => {
 
   it('returns 400 when consent is not explicitly true', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    enforceRateLimitMock.mockResolvedValueOnce(null);
 
     const response = await POST(
       new Request('http://localhost/api/preferences', {
@@ -58,6 +59,7 @@ describe('POST /api/preferences', () => {
 
   it('writes a preference when consent is present', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    enforceRateLimitMock.mockResolvedValueOnce(null);
     writePreferenceMemoryMock.mockResolvedValueOnce({
       id: 'pref-1',
       key: 'communication',

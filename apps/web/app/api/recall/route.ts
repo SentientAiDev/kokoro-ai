@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthSession } from '../../../lib/auth';
-import { searchRecall } from '../../../lib/recall';
+import { memoryService } from '../../../lib/application/memory-service';
 import { consumeRateLimit } from '../../../lib/rate-limit';
+import { recallQuerySchema } from '../../../lib/validation/api';
 
 export async function GET(request: Request) {
   const session = await getAuthSession();
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rateLimit = consumeRateLimit({
+  const rateLimit = await consumeRateLimit({
     key: `recall:read:${session.user.id}`,
     maxRequests: 30,
     windowMs: 60_000,
@@ -24,9 +25,13 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q') ?? '';
+  const parsed = recallQuerySchema.safeParse({ q: searchParams.get('q') ?? '' });
 
-  const items = await searchRecall(session.user.id, query);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid query' }, { status: 400 });
+  }
+
+  const items = await memoryService.recall(session.user.id, parsed.data.q);
 
   return NextResponse.json({ items }, { status: 200 });
 }

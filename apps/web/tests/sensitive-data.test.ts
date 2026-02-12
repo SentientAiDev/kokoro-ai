@@ -13,18 +13,20 @@ describe('sensitive data redaction', () => {
     expect(redacted).toContain('[REDACTED:CARD]');
   });
 
-  it('redacts nested JSON payloads', () => {
+  it('redacts nested JSON payloads and secret-like keys', () => {
     const value = {
       profile: {
         email: 'person@example.com',
       },
+      token: '123',
       notes: ['reach me at 555-123-4567'],
     };
 
     expect(redactSensitiveJson(value)).toEqual({
       profile: {
-        email: '[REDACTED:EMAIL]',
+        email: '[REDACTED]',
       },
+      token: '[REDACTED]',
       notes: ['reach me at [REDACTED:PHONE]'],
     });
   });

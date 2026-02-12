@@ -17,6 +17,8 @@ const SENSITIVE_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
   },
 ];
 
+const SENSITIVE_KEYS = ['password', 'token', 'secret', 'authorization', 'cookie', 'email'];
+
 function redactTextValue(input: string) {
   return SENSITIVE_PATTERNS.reduce(
     (value, { pattern, replacement }) => value.replace(pattern, replacement),
@@ -39,7 +41,15 @@ export function redactSensitiveJson(value: unknown): unknown {
 
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => [key, redactSensitiveJson(nestedValue)]),
+      Object.entries(value).map(([key, nestedValue]) => {
+        const shouldMask = SENSITIVE_KEYS.some((sensitiveKey) => key.toLowerCase().includes(sensitiveKey));
+
+        if (shouldMask) {
+          return [key, '[REDACTED]'];
+        }
+
+        return [key, redactSensitiveJson(nestedValue)];
+      }),
     );
   }
 

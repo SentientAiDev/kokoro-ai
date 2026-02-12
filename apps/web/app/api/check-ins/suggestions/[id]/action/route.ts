@@ -1,18 +1,26 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { getAuthSession } from '../../../../../../lib/auth';
 import { applyCheckInSuggestionAction } from '../../../../../../lib/check-ins';
-
-const actionSchema = z.object({
-  action: z.enum(['dismiss', 'snooze', 'done']),
-  snoozeDays: z.number().int().min(1).max(30).optional(),
-});
+import { enforceRateLimit } from '../../../../../../lib/api-security';
+import { checkInActionParamsSchema, checkInActionSchema } from '../../../../../../lib/validation/api';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getAuthSession();
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    key: `checkins:action:${session.user.id}`,
+    scope: 'checkins.action',
+    subjectId: session.user.id,
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   let body: unknown;
@@ -23,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const parsed = actionSchema.safeParse(body);
+  const parsed = checkInActionSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -32,11 +40,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  const { id } = await params;
+  const parsedParams = checkInActionParamsSchema.safeParse(await params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: 'Validation failed', details: parsedParams.error.flatten() }, { status: 400 });
+  }
 
   const suggestion = await applyCheckInSuggestionAction({
     userId: session.user.id,
-    suggestionId: id,
+    suggestionId: parsedParams.data.id,
     action: parsed.data.action,
     snoozeDays: parsed.data.snoozeDays,
   });

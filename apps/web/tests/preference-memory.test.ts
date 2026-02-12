@@ -24,7 +24,7 @@ describe('writePreferenceMemory', () => {
       id: 'pref-1',
       userId: 'user-1',
       key: 'contact.preference',
-      value: { email: '[REDACTED:EMAIL]' },
+      value: { email: '[REDACTED]' },
       source: 'journal [REDACTED:EMAIL]',
       consentGivenAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -58,7 +58,7 @@ describe('writePreferenceMemory', () => {
       expect.objectContaining({
         create: expect.objectContaining({
           value: {
-            email: '[REDACTED:EMAIL]',
+            email: '[REDACTED]',
             phone: '[REDACTED:PHONE]',
           },
           source: 'journal entry [REDACTED:EMAIL]',

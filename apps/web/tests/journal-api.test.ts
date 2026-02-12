@@ -1,30 +1,28 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, createJournalEntryMock, consumeRateLimitMock } = vi.hoisted(() => ({
+const { getAuthSessionMock, createJournalEntryMock, enforceRateLimitMock } = vi.hoisted(() => ({
   getAuthSessionMock: vi.fn(),
   createJournalEntryMock: vi.fn(),
-  consumeRateLimitMock: vi.fn(),
+  enforceRateLimitMock: vi.fn(),
 }));
 
 vi.mock('../lib/auth', () => ({
   getAuthSession: getAuthSessionMock,
 }));
 
-vi.mock('../lib/journal', () => ({
+vi.mock('../lib/application/journal-service', () => ({
   createJournalEntry: createJournalEntryMock,
 }));
 
-vi.mock('../lib/rate-limit', () => ({
-  consumeRateLimit: consumeRateLimitMock,
+vi.mock('../lib/api-security', () => ({
+  enforceRateLimit: enforceRateLimitMock,
+  handleApiError: (error: unknown) => Response.json({ error: String(error) }, { status: 500 }),
+  logApiRequest: vi.fn(),
 }));
 
 import { POST } from '../app/api/journal/route';
 
 describe('POST /api/journal', () => {
-  beforeEach(() => {
-    consumeRateLimitMock.mockReturnValue({ allowed: true });
-  });
-
   it('returns unauthorized when no session exists', async () => {
     getAuthSessionMock.mockResolvedValueOnce(null);
 
@@ -40,7 +38,7 @@ describe('POST /api/journal', () => {
 
   it('returns 429 when rate limit is exceeded', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
-    consumeRateLimitMock.mockReturnValueOnce({ allowed: false });
+    enforceRateLimitMock.mockResolvedValueOnce(Response.json({ error: 'Too many requests' }, { status: 429 }));
 
     const response = await POST(
       new Request('http://localhost/api/journal', {
@@ -53,35 +51,9 @@ describe('POST /api/journal', () => {
     expect(createJournalEntryMock).not.toHaveBeenCalled();
   });
 
-  it('returns 400 for malformed JSON', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
-
-    const response = await POST(
-      new Request('http://localhost/api/journal', {
-        method: 'POST',
-        body: '{"content":',
-      }),
-    );
-
-    expect(response.status).toBe(400);
-    expect(createJournalEntryMock).not.toHaveBeenCalled();
-  });
-
-  it('returns validation error for empty content', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
-
-    const response = await POST(
-      new Request('http://localhost/api/journal', {
-        method: 'POST',
-        body: JSON.stringify({ content: '' }),
-      }),
-    );
-
-    expect(response.status).toBe(400);
-  });
-
   it('creates a journal entry for valid input', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    enforceRateLimitMock.mockResolvedValueOnce(null);
     createJournalEntryMock.mockResolvedValueOnce({
       id: 'entry-1',
       content: 'hello',

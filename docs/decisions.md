@@ -24,3 +24,15 @@
   - journaling inactivity threshold (default 3 days)
 - Frequency cap is enforced per UTC day (`checkInMaxPerDay`, default `1`).
 - Check-in actions (`dismiss`, `snooze`, `done`) are fully audit logged.
+
+
+## 2026-10-16 — T8 hardening implementation
+
+- Chose a layered architecture pass without rewriting the app:
+  - presentation (`app/` routes/components)
+  - application (`lib/application/*`)
+  - domain (`episodic-summary` + MemoryService orchestration)
+  - infrastructure (`prisma`, rate limit, auth, logging, middleware)
+- Chose in-memory rate limiting by default with optional Upstash backend behind env flags for deployment portability.
+- Chose to store abuse reports in `AuditLog` as `abuse.reported` to avoid breaking schema changes in MVP while preserving traceability.
+- Chose event-driven journal flow (`onJournalEntryCreated`) so journaling automatically triggers memory update and check-in generation in one system path.

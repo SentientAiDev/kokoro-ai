@@ -4,6 +4,7 @@ import { SignOutButton } from '../../components/sign-out-button';
 import { CheckInSettingsForm } from '../../components/check-in-settings-form';
 import { AppShell } from '../../components/app-shell';
 import { Card } from '../../components/ui/card';
+import { ReportIssueForm } from '../../components/report-issue-form';
 
 export default async function AccountPage() {
   const session = await getAuthSession();
@@ -25,6 +26,10 @@ export default async function AccountPage() {
             All proactive suggestions are off by default and only appear in-app.
           </p>
           <CheckInSettingsForm />
+        </Card>
+        <Card className="space-y-3">
+          <h2>Report an issue</h2>
+          <ReportIssueForm />
         </Card>
         <SignOutButton />
       </section>

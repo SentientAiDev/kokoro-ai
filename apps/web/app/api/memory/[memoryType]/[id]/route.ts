@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAuthSession } from '../../../../../lib/auth';
-import { deleteMemoryItem } from '../../../../../lib/recall';
-import { consumeRateLimit } from '../../../../../lib/rate-limit';
+import { memoryService } from '../../../../../lib/application/memory-service';
+import { enforceRateLimit } from '../../../../../lib/api-security';
+import { memoryRouteParamsSchema } from '../../../../../lib/validation/api';
 
 type RouteContext = {
   params: Promise<{
@@ -17,29 +18,28 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rateLimit = consumeRateLimit({
+  const rateLimitResponse = await enforceRateLimit({
     key: `memory:delete:${session.user.id}`,
+    scope: 'memory.delete',
+    subjectId: session.user.id,
     maxRequests: 20,
     windowMs: 60_000,
   });
 
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please slow down and try again.' },
-      { status: 429 },
-    );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
   }
 
-  const { memoryType, id } = await context.params;
+  const parsed = memoryRouteParamsSchema.safeParse(await context.params);
 
-  if (memoryType !== 'episodic' && memoryType !== 'preference') {
+  if (!parsed.success) {
     return NextResponse.json({ error: 'Unsupported memory type' }, { status: 400 });
   }
 
-  const deleted = await deleteMemoryItem({
+  const deleted = await memoryService.deleteMemory({
     userId: session.user.id,
-    memoryType,
-    id,
+    memoryType: parsed.data.memoryType,
+    id: parsed.data.id,
   });
 
   if (!deleted) {
