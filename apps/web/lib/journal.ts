@@ -1,3 +1,4 @@
+import { runEpisodicMemoryPipeline } from './episodic-memory-pipeline';
 import { prisma } from './prisma';
 
 export type JournalEntryListItem = {
@@ -43,12 +44,20 @@ export async function getUserIdByEmail(email: string) {
 }
 
 export async function createJournalEntry(userId: string, content: string) {
-  return db.journalEntry.create({
+  const journalEntry = await db.journalEntry.create({
     data: {
       userId,
       content,
     },
   });
+
+  await runEpisodicMemoryPipeline({
+    userId,
+    journalEntryId: journalEntry.id,
+    content: journalEntry.content,
+  });
+
+  return journalEntry;
 }
 
 export async function listJournalEntries(userId: string): Promise<JournalEntryListItem[]> {

@@ -79,6 +79,7 @@ model EpisodicSummary {
   userId          String
   journalEntryId  String       @unique
   summary         String
+  topics          Json?
   openLoops       Json?
   whyShown        String
   createdAt       DateTime     @default(now())
