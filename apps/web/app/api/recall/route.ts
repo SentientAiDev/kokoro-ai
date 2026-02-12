@@ -1,32 +1,46 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getAuthSession } from '../../../lib/auth';
-import { searchRecall } from '../../../lib/recall';
-import { consumeRateLimit } from '../../../lib/rate-limit';
+import { MemoryService } from '../../../lib/application/memory-service';
+import {
+  enforceRequestRateLimit,
+  getRequestId,
+  logRequest,
+} from '../../../lib/infrastructure/http';
+
+const recallQuerySchema = z.object({
+  q: z.string().max(200).optional().default(''),
+});
 
 export async function GET(request: Request) {
+  const requestId = getRequestId(request);
   const session = await getAuthSession();
+  logRequest(request, requestId, session?.user?.id);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rateLimit = consumeRateLimit({
+  const rateLimitedResponse = await enforceRequestRateLimit({
+    request,
+    requestId,
     key: `recall:read:${session.user.id}`,
     maxRequests: 30,
     windowMs: 60_000,
   });
 
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please slow down and try again.' },
-      { status: 429 },
-    );
+  if (rateLimitedResponse) {
+    return rateLimitedResponse;
   }
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q') ?? '';
+  const parsed = recallQuerySchema.safeParse({ q: searchParams.get('q') ?? '' });
 
-  const items = await searchRecall(session.user.id, query);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const items = await MemoryService.recall(session.user.id, parsed.data.q);
 
   return NextResponse.json({ items }, { status: 200 });
 }

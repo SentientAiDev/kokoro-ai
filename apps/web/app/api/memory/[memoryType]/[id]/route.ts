@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getAuthSession } from '../../../../../lib/auth';
-import { deleteMemoryItem } from '../../../../../lib/recall';
-import { consumeRateLimit } from '../../../../../lib/rate-limit';
+import { MemoryService } from '../../../../../lib/application/memory-service';
+import {
+  enforceRequestRateLimit,
+  getRequestId,
+  logRequest,
+} from '../../../../../lib/infrastructure/http';
+
+const paramsSchema = z.object({
+  memoryType: z.enum(['episodic', 'preference']),
+  id: z.string().cuid(),
+});
 
 type RouteContext = {
   params: Promise<{
@@ -10,36 +20,37 @@ type RouteContext = {
   }>;
 };
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const requestId = getRequestId(request);
   const session = await getAuthSession();
+  logRequest(request, requestId, session?.user?.id);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rateLimit = consumeRateLimit({
+  const parsedParams = paramsSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: 'Unsupported memory type or id' }, { status: 400 });
+  }
+
+  const rateLimitedResponse = await enforceRequestRateLimit({
+    request,
+    requestId,
     key: `memory:delete:${session.user.id}`,
     maxRequests: 20,
     windowMs: 60_000,
   });
 
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please slow down and try again.' },
-      { status: 429 },
-    );
+  if (rateLimitedResponse) {
+    return rateLimitedResponse;
   }
 
-  const { memoryType, id } = await context.params;
-
-  if (memoryType !== 'episodic' && memoryType !== 'preference') {
-    return NextResponse.json({ error: 'Unsupported memory type' }, { status: 400 });
-  }
-
-  const deleted = await deleteMemoryItem({
+  const deleted = await MemoryService.deleteMemory({
     userId: session.user.id,
-    memoryType,
-    id,
+    memoryType: parsedParams.data.memoryType,
+    id: parsedParams.data.id,
   });
 
   if (!deleted) {

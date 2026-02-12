@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthSession } from '../../../../lib/auth';
 import { getCheckInSettings, updateCheckInSettings } from '../../../../lib/check-ins';
+import { enforceRequestRateLimit, getRequestId, logRequest } from '../../../../lib/infrastructure/http';
 
 const settingsSchema = z.object({
   proactiveCheckIns: z.boolean(),
@@ -11,8 +12,10 @@ const settingsSchema = z.object({
   checkInInactivityDays: z.number().int().min(1).max(30),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
+  const requestId = getRequestId(request);
   const session = await getAuthSession();
+  logRequest(request, requestId, session?.user?.id);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,10 +27,25 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const requestId = getRequestId(request);
   const session = await getAuthSession();
+  logRequest(request, requestId, session?.user?.id);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+
+  const rateLimitedResponse = await enforceRequestRateLimit({
+    request,
+    requestId,
+    key: `checkin:settings:update:${session.user.id}`,
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
+
+  if (rateLimitedResponse) {
+    return rateLimitedResponse;
   }
 
   let body: unknown;

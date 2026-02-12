@@ -56,6 +56,11 @@ export function AppShell({
             </details>
           </header>
           <main className="mx-auto w-full max-w-5xl px-6 py-8">{children}</main>
+          <footer className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
+            <Link href="/report-issue" className="hover:underline">
+              Report an issue
+            </Link>
+          </footer>
         </div>
       </div>
     </div>

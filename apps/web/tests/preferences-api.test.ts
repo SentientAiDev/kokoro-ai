@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, writePreferenceMemoryMock, consumeRateLimitMock } = vi.hoisted(() => ({
+const { getAuthSessionMock, writePreferenceMemoryMock, enforceRateLimitMock, logRequestMock } = vi.hoisted(() => ({
   getAuthSessionMock: vi.fn(),
   writePreferenceMemoryMock: vi.fn(),
-  consumeRateLimitMock: vi.fn(),
+  enforceRateLimitMock: vi.fn(),
+  logRequestMock: vi.fn(),
 }));
 
 vi.mock('../lib/auth', () => ({
@@ -14,15 +15,17 @@ vi.mock('../lib/preference-memory', () => ({
   writePreferenceMemory: writePreferenceMemoryMock,
 }));
 
-vi.mock('../lib/rate-limit', () => ({
-  consumeRateLimit: consumeRateLimitMock,
+vi.mock('../lib/infrastructure/http', () => ({
+  getRequestId: () => 'req-1',
+  logRequest: logRequestMock,
+  enforceRequestRateLimit: enforceRateLimitMock,
 }));
 
 import { POST } from '../app/api/preferences/route';
 
 describe('POST /api/preferences', () => {
   beforeEach(() => {
-    consumeRateLimitMock.mockReturnValue({ allowed: true });
+    enforceRateLimitMock.mockResolvedValue(null);
   });
 
   it('returns unauthorized when no session exists', async () => {

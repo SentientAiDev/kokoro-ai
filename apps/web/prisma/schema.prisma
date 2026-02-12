@@ -23,7 +23,9 @@ model User {
   auditLogs            AuditLog[]
   notificationSetting  NotificationSetting?
   checkInSuggestions   CheckInSuggestion[]
+  abuseReports         AbuseReport[]
 }
+
 
 model Account {
   id                String  @id @default(cuid())
@@ -159,4 +161,18 @@ model CheckInSuggestion {
 
   @@index([userId, createdAt])
   @@index([userId, status, createdAt])
+}
+
+model AbuseReport {
+  id           String   @id @default(cuid())
+  userId       String?
+  email        String?
+  category     String
+  message      String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([category, createdAt])
 }
