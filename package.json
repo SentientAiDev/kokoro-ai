@@ -1,0 +1,19 @@
+{
+  "name": "kokoro-presence",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.18.3",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm -r --if-present run build",
+    "lint": "pnpm -r --if-present run lint",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "pnpm -r --if-present run test",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "e2e": "pnpm --filter web run e2e"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

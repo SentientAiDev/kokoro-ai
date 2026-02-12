@@ -1,0 +1,27 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4f7fb;
+  color: #10233f;
+}
+
+main {
+  max-width: 680px;
+  margin: 4rem auto;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 10%);
+}
+
+h1 {
+  margin-top: 0;
+}
