@@ -33,9 +33,9 @@ describe('runEpisodicMemoryPipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     generateSummaryMock.mockReturnValue({
-      summary: 'A summary',
+      summary: 'A summary with person@example.com',
       topics: ['work'],
-      openLoops: ['Need to follow up'],
+      openLoops: ['Need to follow up at 555-111-2222'],
     });
   });
 
@@ -50,6 +50,14 @@ describe('runEpisodicMemoryPipeline', () => {
     });
 
     expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          summary: 'A summary with [REDACTED:EMAIL]',
+          openLoops: ['Need to follow up at [REDACTED:PHONE]'],
+        }),
+      }),
+    );
     expect(updateMock).not.toHaveBeenCalled();
     expect(auditCreateMock).toHaveBeenCalledTimes(1);
   });
@@ -57,9 +65,9 @@ describe('runEpisodicMemoryPipeline', () => {
   it('is idempotent when generated content has not changed', async () => {
     findUniqueMock.mockResolvedValueOnce({
       id: 'summary-1',
-      summary: 'A summary',
+      summary: 'A summary with [REDACTED:EMAIL]',
       topics: ['work'],
-      openLoops: ['Need to follow up'],
+      openLoops: ['Need to follow up at [REDACTED:PHONE]'],
     });
 
     await runEpisodicMemoryPipeline({
