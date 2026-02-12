@@ -31,6 +31,13 @@ A persistent personal AI presence that builds continuity over time via an opt-in
 - API route: `/api/auth/[...nextauth]`
 - UI routes: `/login` and `/account`
 
+
+## Journal UI (T3)
+- Create a text journal entry at `/journal`.
+- View your own journal entries list at `/journal`.
+- Open entry details at `/journal/[id]`.
+- API endpoint for creation: `POST /api/journal`.
+
 ## Core features (MVP)
 - Daily voice/text journal entry
 - Episodic summaries + “open loops”

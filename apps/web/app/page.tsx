@@ -13,6 +13,9 @@ export default function HomePage() {
       <p>
         <Link href="/account">Open account</Link>
       </p>
+      <p>
+        <Link href="/journal">Open journal</Link>
+      </p>
     </main>
   );
 }

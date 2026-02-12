@@ -19,6 +19,15 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     verifyRequest: '/login?sent=true',
   },
+
+  callbacks: {
+    session: ({ session, user }) => {
+      if (session.user) {
+        session.user.id = user.id;
+      }
+      return session;
+    },
+  },
 };
 
 export function getAuthSession() {
