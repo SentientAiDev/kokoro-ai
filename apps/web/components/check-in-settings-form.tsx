@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useToast } from './ui/toast';
+import { formatRetryHint, parseApiError } from '../lib/client/http';
 
 type SettingsState = {
   proactiveCheckIns: boolean;
@@ -27,12 +28,14 @@ export function CheckInSettingsForm() {
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    void (async () => {
+  async function loadSettings() {
+    try {
       const response = await fetch('/api/check-ins/settings');
 
       if (!response.ok) {
-        setStatus('Unable to load proactive check-in settings.');
+        const apiError = await parseApiError(response, 'Unable to load proactive check-in settings.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        setStatus(retryHint ? `${apiError.message} ${retryHint}` : apiError.message);
         setIsLoading(false);
         return;
       }
@@ -40,29 +43,45 @@ export function CheckInSettingsForm() {
       const data = (await response.json()) as SettingsState;
       setSettings(data);
       setIsLoading(false);
-    })();
+    } catch {
+      setStatus('Network issue while loading settings. Please retry.');
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadSettings();
   }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus(null);
 
-    const response = await fetch('/api/check-ins/settings', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(settings),
-    });
+    try {
+      const response = await fetch('/api/check-ins/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings),
+      });
 
-    if (!response.ok) {
-      setStatus('Failed to save settings.');
-      pushToast('Failed to save settings.', 'error');
-      return;
+      if (!response.ok) {
+        const apiError = await parseApiError(response, 'Failed to save settings.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        const message = retryHint ? `${apiError.message} ${retryHint}` : apiError.message;
+        setStatus(message);
+        pushToast(message, 'error');
+        return;
+      }
+
+      setStatus('Saved proactive check-in settings.');
+      pushToast('Settings saved.');
+    } catch {
+      const message = 'Network issue while saving settings. Please retry.';
+      setStatus(message);
+      pushToast(message, 'error');
     }
-
-    setStatus('Saved proactive check-in settings.');
-    pushToast('Settings saved.');
   }
 
   if (isLoading) {
@@ -125,6 +144,11 @@ export function CheckInSettingsForm() {
       </Button>
 
       {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
+      {status?.toLowerCase().includes('unable') || status?.toLowerCase().includes('network') ? (
+        <Button type="button" variant="outline" className="w-fit" onClick={() => void loadSettings()}>
+          Retry loading settings
+        </Button>
+      ) : null}
     </form>
   );
 }

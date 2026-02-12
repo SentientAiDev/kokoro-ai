@@ -7,6 +7,7 @@ import {
   getRequestId,
   logRequest,
 } from '../../../../../../lib/infrastructure/http';
+import { reportError } from '../../../../../../lib/infrastructure/error-reporting';
 
 const paramsSchema = z.object({ id: z.string().cuid() });
 
@@ -64,16 +65,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  const suggestion = await applyCheckInSuggestionAction({
-    userId: session.user.id,
-    suggestionId: parsedParams.data.id,
-    action: parsed.data.action,
-    snoozeDays: parsed.data.snoozeDays,
-  });
+  try {
+    const suggestion = await applyCheckInSuggestionAction({
+      userId: session.user.id,
+      suggestionId: parsedParams.data.id,
+      action: parsed.data.action,
+      snoozeDays: parsed.data.snoozeDays,
+    });
 
-  if (!suggestion) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!suggestion) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(suggestion, { status: 200 });
+  } catch (error) {
+    reportError({
+      event: 'checkin.action.failed',
+      error,
+      requestId,
+      data: { userId: session.user.id, suggestionId: parsedParams.data.id, action: parsed.data.action },
+    });
+    return NextResponse.json({ error: 'Unable to update this check-in right now. Please retry.' }, { status: 500 });
   }
-
-  return NextResponse.json(suggestion, { status: 200 });
 }

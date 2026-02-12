@@ -47,8 +47,8 @@ describe('generateCheckInSuggestionForUser', () => {
     vi.clearAllMocks();
     settingFindUniqueMock.mockResolvedValue({
       proactiveCheckIns: true,
-      checkInWindowStart: '09:00',
-      checkInWindowEnd: '20:00',
+      checkInWindowStart: '00:00',
+      checkInWindowEnd: '23:59',
       checkInMaxPerDay: 1,
       checkInInactivityDays: 3,
     });
@@ -97,6 +97,24 @@ describe('generateCheckInSuggestionForUser', () => {
 
     expect(result).not.toBeNull();
     expect(suggestionCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+
+  it('does not create suggestion outside configured check-in window', async () => {
+    settingFindUniqueMock.mockResolvedValue({
+      proactiveCheckIns: true,
+      checkInWindowStart: '09:00',
+      checkInWindowEnd: '20:00',
+      checkInMaxPerDay: 1,
+      checkInInactivityDays: 3,
+    });
+    summaryFindManyMock.mockResolvedValue([]);
+    journalFindFirstMock.mockResolvedValue({ createdAt: new Date('2026-10-10T00:00:00.000Z') });
+
+    const result = await generateCheckInSuggestionForUser('user-1', new Date('2026-10-15T02:00:00.000Z'));
+
+    expect(result).toBeNull();
+    expect(suggestionCreateMock).not.toHaveBeenCalled();
   });
 
   it('does not create suggestion when daily cap is reached', async () => {

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getAuthSession } from '../../../../lib/auth';
 import { getCheckInSettings, updateCheckInSettings } from '../../../../lib/check-ins';
 import { enforceRequestRateLimit, getRequestId, logRequest } from '../../../../lib/infrastructure/http';
+import { reportError } from '../../../../lib/infrastructure/error-reporting';
 
 const settingsSchema = z.object({
   proactiveCheckIns: z.boolean(),
@@ -21,9 +22,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const settings = await getCheckInSettings(session.user.id);
+  const rateLimitedResponse = await enforceRequestRateLimit({
+    request,
+    requestId,
+    key: `checkin:settings:read:${session.user.id}`,
+    maxRequests: 60,
+    windowMs: 60_000,
+  });
 
-  return NextResponse.json(settings, { status: 200 });
+  if (rateLimitedResponse) {
+    return rateLimitedResponse;
+  }
+
+  try {
+    const settings = await getCheckInSettings(session.user.id);
+    return NextResponse.json(settings, { status: 200 });
+  } catch (error) {
+    reportError({ event: 'checkin.settings.read.failed', error, requestId, data: { userId: session.user.id } });
+    return NextResponse.json({ error: 'Unable to load check-in settings right now. Please retry.' }, { status: 500 });
+  }
 }
 
 export async function PUT(request: Request) {
@@ -65,7 +82,11 @@ export async function PUT(request: Request) {
     );
   }
 
-  const settings = await updateCheckInSettings(session.user.id, parsed.data);
-
-  return NextResponse.json(settings, { status: 200 });
+  try {
+    const settings = await updateCheckInSettings(session.user.id, parsed.data);
+    return NextResponse.json(settings, { status: 200 });
+  } catch (error) {
+    reportError({ event: 'checkin.settings.update.failed', error, requestId, data: { userId: session.user.id } });
+    return NextResponse.json({ error: 'Unable to save settings right now. Please retry.' }, { status: 500 });
+  }
 }

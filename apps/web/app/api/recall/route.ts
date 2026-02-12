@@ -7,6 +7,7 @@ import {
   getRequestId,
   logRequest,
 } from '../../../lib/infrastructure/http';
+import { reportError } from '../../../lib/infrastructure/error-reporting';
 
 const recallQuerySchema = z.object({
   q: z.string().max(200).optional().default(''),
@@ -40,7 +41,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const items = await MemoryService.recall(session.user.id, parsed.data.q);
-
-  return NextResponse.json({ items }, { status: 200 });
+  try {
+    const items = await MemoryService.recall(session.user.id, parsed.data.q);
+    return NextResponse.json({ items }, { status: 200 });
+  } catch (error) {
+    reportError({ event: 'recall.read.failed', error, requestId, data: { userId: session.user.id } });
+    return NextResponse.json({ error: 'Unable to load memory recall right now. Please try again.' }, { status: 500 });
+  }
 }

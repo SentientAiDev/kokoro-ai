@@ -30,17 +30,24 @@ export async function POST(request: Request) {
     return rateLimitedResponse;
   }
 
+  let body: unknown;
+
   try {
-    const body: unknown = await request.json();
-    const parsed = createJournalEntrySchema.safeParse(body);
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.flatten() },
-        { status: 400 },
-      );
-    }
+  const parsed = createJournalEntrySchema.safeParse(body);
 
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
+
+  try {
     const journalEntry = await createJournalEntry(session.user.id, parsed.data.content);
 
     return NextResponse.json(
@@ -53,6 +60,6 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     reportError({ event: 'journal.create.failed', error, requestId, data: { userId: session.user.id } });
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    return NextResponse.json({ error: 'Unable to save your entry right now. Please try again.' }, { status: 500 });
   }
 }

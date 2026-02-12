@@ -7,6 +7,7 @@ import {
   getRequestId,
   logRequest,
 } from '../../../../../lib/infrastructure/http';
+import { reportError } from '../../../../../lib/infrastructure/error-reporting';
 
 const paramsSchema = z.object({
   memoryType: z.enum(['episodic', 'preference']),
@@ -47,15 +48,25 @@ export async function DELETE(request: Request, context: RouteContext) {
     return rateLimitedResponse;
   }
 
-  const deleted = await MemoryService.deleteMemory({
-    userId: session.user.id,
-    memoryType: parsedParams.data.memoryType,
-    id: parsedParams.data.id,
-  });
+  try {
+    const deleted = await MemoryService.deleteMemory({
+      userId: session.user.id,
+      memoryType: parsedParams.data.memoryType,
+      id: parsedParams.data.id,
+    });
 
-  if (!deleted) {
-    return NextResponse.json({ error: 'Memory item not found' }, { status: 404 });
+    if (!deleted) {
+      return NextResponse.json({ error: 'Memory item not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    reportError({
+      event: 'memory.delete.failed',
+      error,
+      requestId,
+      data: { userId: session.user.id, memoryType: parsedParams.data.memoryType, memoryId: parsedParams.data.id },
+    });
+    return NextResponse.json({ error: 'Unable to delete memory right now. Please retry.' }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true }, { status: 200 });
 }

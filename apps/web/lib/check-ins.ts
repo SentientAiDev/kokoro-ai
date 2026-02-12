@@ -202,6 +202,33 @@ function diffInDays(left: Date, right: Date) {
   return Math.floor((left.getTime() - right.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function parseTimeToMinutes(value: string) {
+  const [hours, minutes] = value.split(':').map((part) => Number(part));
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function isWithinWindow(now: Date, start: string, end: string) {
+  const startMinutes = parseTimeToMinutes(start);
+  const endMinutes = parseTimeToMinutes(end);
+
+  if (startMinutes === null || endMinutes === null) {
+    return true;
+  }
+
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+
+  if (startMinutes <= endMinutes) {
+    return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+  }
+
+  return nowMinutes >= startMinutes || nowMinutes <= endMinutes;
+}
+
 export async function getCheckInSettings(userId: string) {
   const existing = await db.notificationSetting.findUnique({
     where: { userId },
@@ -273,6 +300,12 @@ export async function generateCheckInSuggestionForUser(userId: string, now: Date
     return null;
   }
 
+  if (!isWithinWindow(now, settings.checkInWindowStart, settings.checkInWindowEnd)) {
+    return null;
+  }
+
+  const maxPerDay = Math.max(1, settings.checkInMaxPerDay);
+
   const existingCount = await db.checkInSuggestion.count({
     where: {
       userId,
@@ -283,7 +316,7 @@ export async function generateCheckInSuggestionForUser(userId: string, now: Date
     },
   });
 
-  if (existingCount >= settings.checkInMaxPerDay) {
+  if (existingCount >= maxPerDay) {
     return null;
   }
 

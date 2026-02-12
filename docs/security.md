@@ -5,7 +5,8 @@
 - Structured logs are emitted through `lib/infrastructure/logger.ts`.
 - All log payloads pass through redaction (`lib/infrastructure/redaction.ts`).
 - Secrets/PII patterns (email, phone, SSN, cards, token-like fields) are masked before logging.
-- Memory writes and error reporting use the same redaction utility.
+- Memory writes, request logs, and error reporting use the same redaction utility.
+- UI and API error handling now defaults to friendly user-safe messages while detailed context is kept in redacted server logs.
 
 ## Rate limiting
 
@@ -16,6 +17,8 @@ Rate limiting is enforced for:
 - Preference memory writes
 - Memory deletes
 - Check-in write actions/settings update
+- Check-in settings read and check-in suggestions read
+- Daily check-in scheduler trigger endpoint (`/api/check-ins/run-daily-job`)
 - Abuse report endpoint
 
 Backend selection:

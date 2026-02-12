@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { useToast } from './ui/toast';
+import { formatRetryHint, parseApiError } from '../lib/client/http';
 
 type RecallItem = {
   id: string;
@@ -61,18 +62,24 @@ export function RecallView() {
     setLoading(true);
     setError(null);
 
-    const response = await fetch(`/api/recall?q=${encodeURIComponent(activeQuery)}`);
+    try {
+      const response = await fetch(`/api/recall?q=${encodeURIComponent(activeQuery)}`);
 
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? 'Unable to load recall results');
+      if (!response.ok) {
+        const apiError = await parseApiError(response, 'Unable to load recall results right now.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        setError(retryHint ? `${apiError.message} ${retryHint}` : apiError.message);
+        setLoading(false);
+        return;
+      }
+
+      const payload = (await response.json()) as { items: RecallItem[] };
+      setItems(payload.items);
       setLoading(false);
-      return;
+    } catch {
+      setError('Network issue while loading memories. Please retry.');
+      setLoading(false);
     }
-
-    const payload = (await response.json()) as { items: RecallItem[] };
-    setItems(payload.items);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -90,21 +97,28 @@ export function RecallView() {
       return;
     }
 
-    const response = await fetch(`/api/memory/${item.memoryType}/${item.id}`, {
-      method: 'DELETE',
-    });
+    try {
+      const response = await fetch(`/api/memory/${item.memoryType}/${item.id}`, {
+        method: 'DELETE',
+      });
 
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      const message = payload.error ?? 'Unable to delete memory item';
+      if (!response.ok) {
+        const apiError = await parseApiError(response, 'Unable to delete memory item.');
+        const retryHint = formatRetryHint(apiError.retryAfterMs);
+        const message = retryHint ? `${apiError.message} ${retryHint}` : apiError.message;
+        setError(message);
+        pushToast(message, 'error');
+        return;
+      }
+
+      pushToast('Memory item deleted.');
+      await loadItems(query);
+      setActiveItem(null);
+    } catch {
+      const message = 'Network issue while deleting memory. Please retry.';
       setError(message);
       pushToast(message, 'error');
-      return;
     }
-
-    pushToast('Memory item deleted.');
-    await loadItems(query);
-    setActiveItem(null);
   }
 
   const groupedItems = useMemo(() => groupByDay(items), [items]);
@@ -125,8 +139,11 @@ export function RecallView() {
         </form>
 
         {error ? (
-          <Card role="alert" className="border-red-200 text-sm text-red-700">
-            {error}
+          <Card role="alert" className="space-y-2 border-red-200 text-sm text-red-700">
+            <p className="m-0">{error}</p>
+            <Button type="button" variant="outline" onClick={() => void loadItems(query)}>
+              Retry load
+            </Button>
           </Card>
         ) : null}
 
