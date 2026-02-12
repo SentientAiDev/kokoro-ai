@@ -2,6 +2,11 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Input } from './ui/input';
+import { useToast } from './ui/toast';
 
 type RecallItem = {
   id: string;
@@ -25,9 +30,30 @@ function groupByDay(items: RecallItem[]) {
   }, {});
 }
 
+function highlightMatch(text: string, query: string) {
+  if (!query.trim()) {
+    return text;
+  }
+
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(${escaped})`, 'ig');
+  return text.split(pattern).map((part, index) =>
+    part.toLowerCase() === query.toLowerCase() ? (
+      <mark key={`${part}-${index}`} className="rounded bg-yellow-200 px-0.5"> 
+        {part}
+      </mark>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    ),
+  );
+}
+
+
 export function RecallView() {
+  const { pushToast } = useToast();
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<RecallItem[]>([]);
+  const [activeItem, setActiveItem] = useState<RecallItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -70,71 +96,96 @@ export function RecallView() {
 
     if (!response.ok) {
       const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? 'Unable to delete memory item');
+      const message = payload.error ?? 'Unable to delete memory item';
+      setError(message);
+      pushToast(message, 'error');
       return;
     }
 
+    pushToast('Memory item deleted.');
     await loadItems(query);
+    setActiveItem(null);
   }
 
   const groupedItems = useMemo(() => groupByDay(items), [items]);
   const dateGroups = Object.entries(groupedItems);
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search episodic and preference memory"
-          aria-label="Search memories"
-          style={{ flex: 1 }}
-        />
-        <button type="submit">Search</button>
-      </form>
+    <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="space-y-4">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search episodic and preference memory"
+            aria-label="Search memories"
+          />
+          <Button type="submit">Search</Button>
+        </form>
 
-      {error ? (
-        <p role="alert" style={{ margin: 0, color: '#b00020' }}>
-          {error}
-        </p>
-      ) : null}
+        {error ? (
+          <Card role="alert" className="border-red-200 text-sm text-red-700">
+            {error}
+          </Card>
+        ) : null}
 
-      {loading ? <p>Loading memory timeline…</p> : null}
+        {loading ? <Card className="text-sm text-muted-foreground">Loading memory timeline…</Card> : null}
 
-      {!loading && dateGroups.length === 0 ? <p>No recalled memories found.</p> : null}
+        {!loading && dateGroups.length === 0 ? (
+          <Card className="text-sm text-muted-foreground">No memory results yet. Try a broader query.</Card>
+        ) : null}
 
-      {!loading
-        ? dateGroups.map(([dateLabel, dayItems]) => (
-            <section key={dateLabel}>
-              <h2>{dateLabel}</h2>
-              <ul style={{ display: 'grid', gap: '0.75rem', paddingLeft: '1.25rem' }}>
-                {dayItems.map((item) => (
-                  <li key={item.id}>
-                    <p style={{ margin: '0 0 0.25rem 0' }}>{item.content}</p>
-                    <button type="button" onClick={() => void handleDelete(item)}>
-                      Delete
-                    </button>
-                    <details style={{ marginTop: '0.35rem' }}>
-                      <summary>Why am I seeing this?</summary>
-                      <ul>
-                        <li>Memory type: {item.memoryType}</li>
-                        <li>Source date: {new Date(item.sourceDate).toLocaleString()}</li>
-                        <li>Reason: {item.reason}</li>
-                        <li>{item.whyShown}</li>
-                        {item.memoryType === 'episodic' && item.journalEntryId ? (
-                          <li>
-                            <Link href={`/journal/${item.journalEntryId}`}>Open original journal entry</Link>
-                          </li>
-                        ) : null}
-                      </ul>
-                    </details>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))
-        : null}
+        {!loading && dateGroups.length > 0
+          ? dateGroups.map(([dateLabel, dayItems]) => (
+              <section key={dateLabel} className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-700">{dateLabel}</h3>
+                <ul className="grid gap-2">
+                  {dayItems.map((item) => (
+                    <li key={item.id}>
+                      <Card className="space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm leading-6">{highlightMatch(item.content, query)}</p>
+                          <Badge>{item.memoryType}</Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" onClick={() => setActiveItem(item)}>
+                            Why this memory?
+                          </Button>
+                          <Button type="button" variant="destructive" onClick={() => void handleDelete(item)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          : null}
+      </div>
+
+      <aside className="h-fit">
+        <Card className="sticky top-4 space-y-2">
+          <h3>Why this memory?</h3>
+          {!activeItem ? (
+            <p className="text-sm text-muted-foreground">Select a memory to inspect why it was recalled.</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                <strong>Reason:</strong> {activeItem.reason}
+              </p>
+              <p className="text-sm text-muted-foreground">{activeItem.whyShown}</p>
+              <p className="text-sm text-muted-foreground">Source: {new Date(activeItem.sourceDate).toLocaleString()}</p>
+              {activeItem.memoryType === 'episodic' && activeItem.journalEntryId ? (
+                <Link href={`/journal/${activeItem.journalEntryId}`} className="text-sm text-primary hover:underline">
+                  Open original journal entry
+                </Link>
+              ) : null}
+            </>
+          )}
+        </Card>
+      </aside>
     </section>
   );
 }

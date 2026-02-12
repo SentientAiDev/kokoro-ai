@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { useToast } from './ui/toast';
 
 type Suggestion = {
   id: string;
@@ -14,6 +17,7 @@ type Suggestion = {
 };
 
 export function CheckInBanner() {
+  const { pushToast } = useToast();
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
 
   async function load() {
@@ -45,28 +49,31 @@ export function CheckInBanner() {
     });
 
     if (!response.ok) {
+      pushToast('Unable to apply action.', 'error');
       return;
     }
 
+    pushToast('Check-in updated.');
     await load();
   }
 
   if (!suggestion) {
-    return null;
+    return (
+      <Card className="text-sm text-muted-foreground">
+        No active check-in suggestions right now. We&apos;ll surface one if a configured trigger appears.
+      </Card>
+    );
   }
 
   return (
-    <section
-      style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: 8, marginBottom: '1rem' }}
-      aria-label="Notification center"
-    >
-      <h2 style={{ marginTop: 0 }}>Check-in suggestion</h2>
-      <p>{suggestion.message}</p>
-      <details>
-        <summary>Why this check-in?</summary>
-        <p>{suggestion.why}</p>
+    <Card aria-label="Notification center" className="space-y-3">
+      <h2 className="text-base">Check-in suggestion</h2>
+      <p className="text-sm">{suggestion.message}</p>
+      <details className="text-sm text-muted-foreground">
+        <summary className="cursor-pointer">Why this check-in?</summary>
+        <p className="mt-2">{suggestion.why}</p>
         {suggestion.reasonDetails.openLoops.length > 0 ? (
-          <ul>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
             {suggestion.reasonDetails.openLoops.map((loop) => (
               <li key={`${loop.summaryId}-${loop.loop}`}>
                 <strong>Open loop:</strong> {loop.loop}
@@ -74,21 +81,18 @@ export function CheckInBanner() {
             ))}
           </ul>
         ) : null}
-        {suggestion.reasonDetails.inactivityDays !== null ? (
-          <p>Inactivity: {suggestion.reasonDetails.inactivityDays} days since your latest journal entry.</p>
-        ) : null}
       </details>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button type="button" onClick={() => void applyAction('dismiss')}>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" onClick={() => void applyAction('dismiss')}>
           Dismiss
-        </button>
-        <button type="button" onClick={() => void applyAction('snooze')}>
+        </Button>
+        <Button type="button" variant="outline" onClick={() => void applyAction('snooze')}>
           Snooze
-        </button>
-        <button type="button" onClick={() => void applyAction('done')}>
+        </Button>
+        <Button type="button" onClick={() => void applyAction('done')}>
           Mark done
-        </button>
+        </Button>
       </div>
-    </section>
+    </Card>
   );
 }
