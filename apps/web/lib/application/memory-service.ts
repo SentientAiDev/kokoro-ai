@@ -3,7 +3,11 @@ import { prisma } from '../prisma';
 import { redactJson, redactText } from '../infrastructure/redaction';
 import { logInfo } from '../infrastructure/logger';
 import type { RecallItem } from '../recall';
-import { searchRecall as searchRecallInternal, deleteMemoryItem as deleteMemoryItemInternal } from '../recall';
+import {
+  searchRecall as searchRecallInternal,
+  deleteMemoryItem as deleteMemoryItemInternal,
+  deleteAllMemoriesForUser as deleteAllMemoriesForUserInternal,
+} from '../recall';
 
 export class PreferenceMemoryConsentError extends Error {
   constructor() {
@@ -184,5 +188,9 @@ export const MemoryService = {
 
   async deleteMemory(input: { userId: string; memoryType: 'episodic' | 'preference'; id: string }) {
     return deleteMemoryItemInternal(input);
+  },
+
+  async deleteAllMemories(userId: string) {
+    return deleteAllMemoriesForUserInternal(userId);
   },
 };

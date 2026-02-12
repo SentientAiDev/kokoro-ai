@@ -14,3 +14,10 @@
 - Added structured logging with shared redaction utility and unified error reporting hooks.
 - Added `AbuseReport` persistence model and `/api/abuse` endpoint with zod validation.
 - Added baseline security headers via Next.js middleware.
+
+## 2026-02-12 — Product polish v1 information architecture
+
+- Reframed app navigation around five user-facing hubs: Today, Journal, Memory, Check-ins, Settings.
+- Added a dedicated Trust Center page with explicit storage policy language and one-click memory purge.
+- Kept defaults conservative by preserving proactive check-ins as opt-in/off by default, including onboarding copy and controls.
+- Consolidated first-run clarity into a lightweight onboarding card explaining journal → memory → recall → check-ins loop.

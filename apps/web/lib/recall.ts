@@ -47,6 +47,7 @@ type RecallDb = {
     }): Promise<EpisodicRecord[]>;
     findFirst(args: { where: { id: string; userId: string }; select: { id: true } }): Promise<{ id: string } | null>;
     delete(args: { where: { id: string } }): Promise<{ id: string }>;
+    deleteMany(args: { where: { userId: string } }): Promise<{ count: number }>;
   };
   preferenceMemory: {
     findMany(args: {
@@ -62,6 +63,7 @@ type RecallDb = {
     }): Promise<PreferenceRecord[]>;
     findFirst(args: { where: { id: string; userId: string; revokedAt: null }; select: { id: true } }): Promise<{ id: string } | null>;
     update(args: { where: { id: string }; data: { revokedAt: Date } }): Promise<{ id: string }>;
+    updateMany(args: { where: { userId: string; revokedAt: null }; data: { revokedAt: Date } }): Promise<{ count: number }>;
   };
   auditLog: {
     create(args: {
@@ -70,10 +72,11 @@ type RecallDb = {
         action: string;
         entityType: string;
         entityId: string;
-        metadata: { memoryType: 'episodic' | 'preference' };
+        metadata: { memoryType: 'episodic' | 'preference' } | { episodicDeleted: number; preferenceRevoked: number };
       };
     }): Promise<{ id: string }>;
   };
+  $transaction<T>(input: Promise<T>[]): Promise<T[]>;
 };
 
 const db = prisma as unknown as RecallDb;
@@ -258,4 +261,30 @@ export async function deleteMemoryItem(input: {
   });
 
   return true;
+}
+
+
+export async function deleteAllMemoriesForUser(userId: string) {
+  const [episodicResult, preferenceResult] = await db.$transaction([
+    db.episodicSummary.deleteMany({ where: { userId } }),
+    db.preferenceMemory.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+  ]);
+
+  await db.auditLog.create({
+    data: {
+      userId,
+      action: 'memory.bulk_deleted',
+      entityType: 'Memory',
+      entityId: userId,
+      metadata: {
+        episodicDeleted: episodicResult.count,
+        preferenceRevoked: preferenceResult.count,
+      },
+    },
+  });
+
+  return {
+    episodicDeleted: episodicResult.count,
+    preferenceRevoked: preferenceResult.count,
+  };
 }
