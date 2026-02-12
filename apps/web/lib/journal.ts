@@ -51,10 +51,12 @@ export async function createJournalEntry(userId: string, content: string) {
     },
   });
 
-  await runEpisodicMemoryPipeline({
+  void runEpisodicMemoryPipeline({
     userId,
     journalEntryId: journalEntry.id,
     content: journalEntry.content,
+  }).catch(() => {
+    // Best effort: journal write succeeded, so episodic processing failures must not fail the request.
   });
 
   return journalEntry;
