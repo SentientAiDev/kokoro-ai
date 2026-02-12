@@ -16,6 +16,9 @@ export default function HomePage() {
       <p>
         <Link href="/journal">Open journal</Link>
       </p>
+      <p>
+        <Link href="/recall">Open memory recall</Link>
+      </p>
     </main>
   );
 }

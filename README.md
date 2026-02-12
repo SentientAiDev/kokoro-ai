@@ -46,6 +46,12 @@ A persistent personal AI presence that builds continuity over time via an opt-in
 - Open entry details at `/journal/[id]`.
 - API endpoint for creation: `POST /api/journal`.
 
+## Recall UI (T6)
+
+- Search and recall memory items at `/recall`.
+- Timeline groups memories by source date across episodic summaries and preference memory.
+- Every recalled item exposes a “Why am I seeing this?” panel and supports deletion with confirmation.
+
 ## Core features (MVP)
 
 - Daily voice/text journal entry
