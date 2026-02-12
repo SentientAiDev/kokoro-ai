@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, createJournalEntryMock } = vi.hoisted(() => ({
+const { getAuthSessionMock, createJournalEntryMock, checkRateLimitMock } = vi.hoisted(() => ({
   getAuthSessionMock: vi.fn(),
   createJournalEntryMock: vi.fn(),
+  checkRateLimitMock: vi.fn(),
 }));
 
 vi.mock('../lib/auth', () => ({
@@ -11,6 +12,10 @@ vi.mock('../lib/auth', () => ({
 
 vi.mock('../lib/journal', () => ({
   createJournalEntry: createJournalEntryMock,
+}));
+
+vi.mock('../lib/rate-limit', () => ({
+  checkRateLimit: checkRateLimitMock,
 }));
 
 import { POST } from '../app/api/journal/route';
@@ -27,10 +32,28 @@ describe('POST /api/journal', () => {
     );
 
     expect(response.status).toBe(401);
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 when the rate limit is exceeded', async () => {
+    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    checkRateLimitMock.mockReturnValueOnce({ allowed: false, retryAfterSeconds: 42 });
+
+    const response = await POST(
+      new Request('http://localhost/api/journal', {
+        method: 'POST',
+        body: JSON.stringify({ content: 'hello' }),
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('42');
+    expect(createJournalEntryMock).not.toHaveBeenCalled();
   });
 
   it('returns validation error for empty content', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    checkRateLimitMock.mockReturnValueOnce({ allowed: true, retryAfterSeconds: 0 });
 
     const response = await POST(
       new Request('http://localhost/api/journal', {
@@ -44,6 +67,7 @@ describe('POST /api/journal', () => {
 
   it('creates a journal entry for valid input', async () => {
     getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    checkRateLimitMock.mockReturnValueOnce({ allowed: true, retryAfterSeconds: 0 });
     createJournalEntryMock.mockResolvedValueOnce({
       id: 'entry-1',
       content: 'hello',
@@ -58,6 +82,10 @@ describe('POST /api/journal', () => {
     );
 
     expect(response.status).toBe(201);
+    expect(checkRateLimitMock).toHaveBeenCalledWith('journal:post:user-1', {
+      maxRequests: 30,
+      windowMs: 60_000,
+    });
     expect(createJournalEntryMock).toHaveBeenCalledWith('user-1', 'hello');
   });
 });
