@@ -1,6 +1,9 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { useToast } from './ui/toast';
 
 type SettingsState = {
   proactiveCheckIns: boolean;
@@ -19,6 +22,7 @@ const defaultSettings: SettingsState = {
 };
 
 export function CheckInSettingsForm() {
+  const { pushToast } = useToast();
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
@@ -53,48 +57,50 @@ export function CheckInSettingsForm() {
 
     if (!response.ok) {
       setStatus('Failed to save settings.');
+      pushToast('Failed to save settings.', 'error');
       return;
     }
 
     setStatus('Saved proactive check-in settings.');
+    pushToast('Settings saved.');
   }
 
   if (isLoading) {
-    return <p>Loading check-in settings…</p>;
+    return <p className="text-sm text-muted-foreground">Loading check-in settings…</p>;
   }
 
   return (
-    <form onSubmit={onSubmit} style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }}>
-      <label>
+    <form onSubmit={onSubmit} className="grid gap-4 text-sm">
+      <label className="flex items-center gap-2 rounded-md border border-border bg-white p-3">
         <input
           type="checkbox"
           checked={settings.proactiveCheckIns}
           onChange={(event) => setSettings({ ...settings, proactiveCheckIns: event.target.checked })}
-        />{' '}
+        />
         Enable proactive check-ins
       </label>
 
-      <label>
+      <label className="grid gap-1">
         Preferred window start
-        <input
+        <Input
           type="time"
           value={settings.checkInWindowStart}
           onChange={(event) => setSettings({ ...settings, checkInWindowStart: event.target.value })}
         />
       </label>
 
-      <label>
+      <label className="grid gap-1">
         Preferred window end
-        <input
+        <Input
           type="time"
           value={settings.checkInWindowEnd}
           onChange={(event) => setSettings({ ...settings, checkInWindowEnd: event.target.value })}
         />
       </label>
 
-      <label>
+      <label className="grid gap-1">
         Max suggestions per day
-        <input
+        <Input
           type="number"
           min={1}
           max={10}
@@ -103,9 +109,9 @@ export function CheckInSettingsForm() {
         />
       </label>
 
-      <label>
+      <label className="grid gap-1">
         Inactivity threshold (days)
-        <input
+        <Input
           type="number"
           min={1}
           max={30}
@@ -114,11 +120,11 @@ export function CheckInSettingsForm() {
         />
       </label>
 
-      <button type="submit" style={{ width: 'fit-content' }}>
+      <Button type="submit" className="w-fit">
         Save proactive check-ins
-      </button>
+      </Button>
 
-      {status ? <p>{status}</p> : null}
+      {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
     </form>
   );
 }
