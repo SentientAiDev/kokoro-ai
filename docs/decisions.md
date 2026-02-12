@@ -7,3 +7,5 @@
 - 0005: Add a GitHub Actions CI workflow that runs lint, typecheck, and unit tests.
 - 0006: Use Postgres (Docker Compose) + Prisma schema/migrations under `apps/web/prisma` to keep database concerns colocated with the Next.js app for MVP speed.
 - 0007: Harden CI/restricted-env behavior by using a GitHub Actions Postgres service container, running `prisma migrate deploy` against `DATABASE_URL`, and supporting `PRISMA_SKIP_GENERATE=1` so lint/typecheck/test can run when Prisma client generation is unavailable.
+
+- 0008: Implement auth with NextAuth email magic links and Prisma Adapter for the fastest MVP-compatible, passwordless sign-in flow.
