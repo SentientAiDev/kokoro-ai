@@ -10,7 +10,7 @@ A persistent personal AI presence that builds continuity over time via an opt-in
 
 ## Quickstart
 1. `pnpm install`
-2. `cp .env.sample .env`
+2. `cp .env.sample apps/web/.env`
 3. `pnpm db:up`
 4. `pnpm db:migrate`
 5. `pnpm db:seed`
@@ -19,6 +19,8 @@ A persistent personal AI presence that builds continuity over time via an opt-in
 8. `pnpm typecheck`
 9. `pnpm test`
 10. `pnpm e2e`
+
+> Prisma commands run in `apps/web`, so the env file needs to live at `apps/web/.env` for `DATABASE_URL` to be picked up during migrate/seed.
 
 ## Database (T1)
 - Postgres runs via `docker compose` (`docker-compose.yml`)
