@@ -21,3 +21,9 @@
 - Added a dedicated Trust Center page with explicit storage policy language and one-click memory purge.
 - Kept defaults conservative by preserving proactive check-ins as opt-in/off by default, including onboarding copy and controls.
 - Consolidated first-run clarity into a lightweight onboarding card explaining journal → memory → recall → check-ins loop.
+
+## 2026-02-12 — Launch readiness defaults
+
+- Chose **Vercel + Neon Postgres** as the default production recommendation to keep deployment simple for MVP teams.
+- Added a lightweight `/api/health` route that verifies API availability plus DB connectivity using `SELECT 1`.
+- Added in-app feedback capture persisted to `FeedbackMessage` with request rate-limiting and redaction to avoid storing raw sensitive inputs.

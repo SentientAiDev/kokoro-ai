@@ -53,3 +53,12 @@ Useful checks:
 - `pnpm e2e`
 
 > Prisma commands run in `apps/web`, so `apps/web/.env` must contain `DATABASE_URL` for migrate/seed to work.
+
+## Production deploy
+
+See [docs/launch-readiness.md](docs/launch-readiness.md) for:
+
+- Vercel deployment instructions
+- Neon/Supabase Postgres setup notes
+- Production checklist for env vars, auth, DB, and logging
+- `/api/health` verification
