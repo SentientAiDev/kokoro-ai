@@ -2,12 +2,18 @@
 
 A persistent personal AI presence that builds continuity over time via an opt-in memory system.
 
+## Monorepo layout
+- `apps/web`: Next.js App Router frontend + API host
+- `packages/shared`: Shared TypeScript constants/utilities
+- `tests/e2e`: Playwright smoke tests
+
 ## Quickstart
 1. `pnpm install`
-2. `cp .env.example .env`
-3. `pnpm db:up` (or configure Supabase)
-4. `pnpm db:migrate`
-5. `pnpm dev`
+2. `pnpm dev`
+3. `pnpm lint`
+4. `pnpm typecheck`
+5. `pnpm test`
+6. `pnpm e2e`
 
 ## Core features (MVP)
 - Daily voice/text journal entry

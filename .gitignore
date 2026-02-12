@@ -1,0 +1,7 @@
+node_modules
+.pnpm-store
+.next
+playwright-report
+test-results
+coverage
+.env*
