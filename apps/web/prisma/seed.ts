@@ -30,8 +30,9 @@ async function main() {
 }
 
 main()
-  .catch((error) => {
-    console.error('Database seed failed', error);
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Database seed failed', { message });
     process.exit(1);
   })
   .finally(async () => {
