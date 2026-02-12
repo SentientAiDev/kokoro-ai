@@ -8,6 +8,24 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: kokoro
+          POSTGRES_USER: kokoro
+          POSTGRES_PASSWORD: kokoro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kokoro -d kokoro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: 'true'
+      PRISMA_SKIP_GENERATE: '1'
+      DATABASE_URL: postgresql://kokoro:kokoro@localhost:5432/kokoro?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -19,6 +37,8 @@ jobs:
           cache: 'pnpm'
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Run Prisma migrations
+        run: pnpm db:deploy
       - name: Lint
         run: pnpm lint
       - name: Typecheck
