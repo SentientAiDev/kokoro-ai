@@ -3,9 +3,22 @@ import { generateEpisodicSummary } from './episodic-summary';
 
 type PipelineDb = {
   episodicSummary: {
-    upsert(args: {
+    findUnique(args: {
       where: { journalEntryId: string };
-      create: {
+      select: {
+        id: true;
+        summary: true;
+        topics: true;
+        openLoops: true;
+      };
+    }): Promise<{
+      id: string;
+      summary: string;
+      topics: string[] | null;
+      openLoops: string[] | null;
+    } | null>;
+    create(args: {
+      data: {
         userId: string;
         journalEntryId: string;
         summary: string;
@@ -13,7 +26,10 @@ type PipelineDb = {
         openLoops: string[];
         whyShown: string;
       };
-      update: {
+    }): Promise<{ id: string }>;
+    update(args: {
+      where: { journalEntryId: string };
+      data: {
         summary: string;
         topics: string[];
         openLoops: string[];
@@ -42,24 +58,46 @@ export async function runEpisodicMemoryPipeline(input: {
   content: string;
 }) {
   const result = generateEpisodicSummary(input.content);
-
-  const episodicSummary = await db.episodicSummary.upsert({
+  const existingSummary = await db.episodicSummary.findUnique({
     where: { journalEntryId: input.journalEntryId },
-    create: {
-      userId: input.userId,
-      journalEntryId: input.journalEntryId,
-      summary: result.summary,
-      topics: result.topics,
-      openLoops: result.openLoops,
-      whyShown: 'Generated from your journal entry to provide continuity over time.',
-    },
-    update: {
-      summary: result.summary,
-      topics: result.topics,
-      openLoops: result.openLoops,
-      whyShown: 'Generated from your journal entry to provide continuity over time.',
+    select: {
+      id: true,
+      summary: true,
+      topics: true,
+      openLoops: true,
     },
   });
+
+  const hasChanged =
+    !existingSummary ||
+    existingSummary.summary !== result.summary ||
+    JSON.stringify(existingSummary.topics ?? []) !== JSON.stringify(result.topics) ||
+    JSON.stringify(existingSummary.openLoops ?? []) !== JSON.stringify(result.openLoops);
+
+  if (!hasChanged && existingSummary) {
+    return result;
+  }
+
+  const episodicSummary = existingSummary
+    ? await db.episodicSummary.update({
+        where: { journalEntryId: input.journalEntryId },
+        data: {
+          summary: result.summary,
+          topics: result.topics,
+          openLoops: result.openLoops,
+          whyShown: 'Generated from your journal entry to provide continuity over time.',
+        },
+      })
+    : await db.episodicSummary.create({
+        data: {
+          userId: input.userId,
+          journalEntryId: input.journalEntryId,
+          summary: result.summary,
+          topics: result.topics,
+          openLoops: result.openLoops,
+          whyShown: 'Generated from your journal entry to provide continuity over time.',
+        },
+      });
 
   await db.auditLog.create({
     data: {
