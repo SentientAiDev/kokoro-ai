@@ -25,6 +25,12 @@ A persistent personal AI presence that builds continuity over time via an opt-in
 - Prisma schema includes MVP models: `User`, `JournalEntry`, `EpisodicSummary`, `PreferenceMemory`, `AuditLog`, `NotificationSetting`
 - Seed data is defined in `apps/web/prisma/seed.ts`
 
+## Auth (T2)
+- NextAuth is configured with email magic-link login.
+- Required env vars: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`.
+- API route: `/api/auth/[...nextauth]`
+- UI routes: `/login` and `/account`
+
 ## Core features (MVP)
 - Daily voice/text journal entry
 - Episodic summaries + “open loops”
