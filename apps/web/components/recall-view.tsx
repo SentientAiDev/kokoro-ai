@@ -168,20 +168,25 @@ export function RecallView() {
       <aside className="h-fit">
         <Card className="sticky top-4 space-y-2">
           <h3>Why this memory?</h3>
+          <p className="text-xs text-muted-foreground">Every recall includes source context and controls.</p>
           {!activeItem ? (
             <p className="text-sm text-muted-foreground">Select a memory to inspect why it was recalled.</p>
           ) : (
             <>
-              <p className="text-sm">
-                <strong>Reason:</strong> {activeItem.reason}
-              </p>
+              <p className="text-sm"><strong>Type:</strong> {activeItem.memoryType}</p>
+              <p className="text-sm"><strong>Reason:</strong> {activeItem.reason}</p>
               <p className="text-sm text-muted-foreground">{activeItem.whyShown}</p>
-              <p className="text-sm text-muted-foreground">Source: {new Date(activeItem.sourceDate).toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground"><strong>Source date:</strong> {new Date(activeItem.sourceDate).toLocaleString()}</p>
               {activeItem.memoryType === 'episodic' && activeItem.journalEntryId ? (
                 <Link href={`/journal/${activeItem.journalEntryId}`} className="text-sm text-primary hover:underline">
                   Open original journal entry
                 </Link>
               ) : null}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button type="button" variant="destructive" onClick={() => void handleDelete(activeItem)}>
+                  {activeItem.memoryType === 'preference' ? 'Forget preference' : 'Delete memory'}
+                </Button>
+              </div>
             </>
           )}
         </Card>

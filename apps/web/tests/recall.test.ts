@@ -8,6 +8,9 @@ const {
   preferenceFindFirstMock,
   preferenceUpdateMock,
   auditCreateMock,
+  episodicDeleteManyMock,
+  preferenceUpdateManyMock,
+  transactionMock,
 } = vi.hoisted(() => ({
   episodicFindManyMock: vi.fn(),
   preferenceFindManyMock: vi.fn(),
@@ -16,6 +19,9 @@ const {
   preferenceFindFirstMock: vi.fn(),
   preferenceUpdateMock: vi.fn(),
   auditCreateMock: vi.fn(),
+  episodicDeleteManyMock: vi.fn(),
+  preferenceUpdateManyMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
 vi.mock('../lib/prisma', () => ({
@@ -24,19 +30,22 @@ vi.mock('../lib/prisma', () => ({
       findMany: episodicFindManyMock,
       findFirst: episodicFindFirstMock,
       delete: episodicDeleteMock,
+      deleteMany: episodicDeleteManyMock,
     },
     preferenceMemory: {
       findMany: preferenceFindManyMock,
       findFirst: preferenceFindFirstMock,
       update: preferenceUpdateMock,
+      updateMany: preferenceUpdateManyMock,
     },
     auditLog: {
       create: auditCreateMock,
     },
+    $transaction: transactionMock,
   },
 }));
 
-import { deleteMemoryItem, searchRecall } from '../lib/recall';
+import { deleteAllMemoriesForUser, deleteMemoryItem, searchRecall } from '../lib/recall';
 
 describe('searchRecall', () => {
   beforeEach(() => {
@@ -131,6 +140,25 @@ describe('deleteMemoryItem', () => {
 
     expect(deleted).toBe(true);
     expect(preferenceUpdateMock).toHaveBeenCalledTimes(1);
+    expect(auditCreateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('deleteAllMemoriesForUser', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('deletes episodic and revokes preference memories with audit log', async () => {
+    const transactionResult = [{ count: 2 }, { count: 1 }];
+    transactionMock.mockResolvedValueOnce(transactionResult);
+    auditCreateMock.mockResolvedValueOnce({ id: 'audit-1' });
+
+    const result = await deleteAllMemoriesForUser('user-1');
+
+    expect(result).toEqual({ episodicDeleted: 2, preferenceRevoked: 1 });
+    expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(auditCreateMock).toHaveBeenCalledTimes(1);
   });
 });
