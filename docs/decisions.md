@@ -9,3 +9,5 @@
 - 0007: Harden CI/restricted-env behavior by using a GitHub Actions Postgres service container, running `prisma migrate deploy` against `DATABASE_URL`, and supporting `PRISMA_SKIP_GENERATE=1` so lint/typecheck/test can run when Prisma client generation is unavailable.
 
 - 0008: Implement auth with NextAuth email magic links and Prisma Adapter for the fastest MVP-compatible, passwordless sign-in flow.
+
+- 0009: Implement T4 episodic memory as a deterministic rule-based pipeline (keyword topic extraction + open-loop heuristics) triggered immediately after journal entry creation, with audit logging for each generated summary.
