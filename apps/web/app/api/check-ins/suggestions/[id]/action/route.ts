@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAuthSession } from '../../../../../../lib/auth';
+import { getActor } from '../../../../../../lib/actor';
 import { applyCheckInSuggestionAction } from '../../../../../../lib/check-ins';
 import {
   enforceRequestRateLimit,
@@ -23,10 +23,10 @@ const actionSchema = z
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `checkin:action:${session.user.id}`,
+    key: `checkin:action:${actor.actorId}`,
     maxRequests: 20,
     windowMs: 60_000,
   });
@@ -67,7 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const suggestion = await applyCheckInSuggestionAction({
-      userId: session.user.id,
+      userId: actor.actorId,
       suggestionId: parsedParams.data.id,
       action: parsed.data.action,
       snoozeDays: parsed.data.snoozeDays,
@@ -83,7 +83,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       event: 'checkin.action.failed',
       error,
       requestId,
-      data: { userId: session.user.id, suggestionId: parsedParams.data.id, action: parsed.data.action },
+      data: { userId: actor.actorId, suggestionId: parsedParams.data.id, action: parsed.data.action },
     });
     return NextResponse.json({ error: 'Unable to update this check-in right now. Please retry.' }, { status: 500 });
   }

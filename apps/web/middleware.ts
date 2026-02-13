@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createSignedGuestCookieValue, getGuestCookieOptions, GUEST_COOKIE_NAME, verifyGuestCookie } from './lib/guest-cookie';
 
-export function middleware() {
+export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   response.headers.set('X-Frame-Options', 'DENY');
@@ -13,6 +14,14 @@ export function middleware() {
     'Content-Security-Policy',
     "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none';",
   );
+
+  const existingGuestCookie = request.cookies.get(GUEST_COOKIE_NAME)?.value;
+  const guestId = await verifyGuestCookie(existingGuestCookie);
+
+  if (!guestId) {
+    const nextGuestCookie = await createSignedGuestCookieValue();
+    response.cookies.set(GUEST_COOKIE_NAME, nextGuestCookie.value, getGuestCookieOptions());
+  }
 
   return response;
 }

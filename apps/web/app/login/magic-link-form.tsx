@@ -28,7 +28,7 @@ export function MagicLinkForm() {
     const result = await signIn('email', {
       email,
       redirect: false,
-      callbackUrl: '/account',
+      callbackUrl: '/auth/complete',
     });
 
     setIsSubmitting(false);

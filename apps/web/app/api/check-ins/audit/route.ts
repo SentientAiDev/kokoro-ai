@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '../../../../lib/auth';
+import { getActor } from '../../../../lib/actor';
 import { prisma } from '../../../../lib/prisma';
 
 type AuditDb = {
@@ -16,14 +16,14 @@ type AuditDb = {
 const db = prisma as unknown as AuditDb;
 
 export async function GET() {
-  const session = await getAuthSession();
+  const actor = await getActor();
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const events = await db.auditLog.findMany({
-    where: { userId: session.user.id, entityType: 'CheckInSuggestion' },
+    where: { userId: actor.actorId, entityType: 'CheckInSuggestion' },
     orderBy: { createdAt: 'desc' },
     take: 20,
     select: { action: true, createdAt: true, entityId: true },

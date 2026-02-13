@@ -36,8 +36,8 @@ export default function HomePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/login">
-            <Button>Start with magic link</Button>
+          <Link href="/today">
+            <Button>Continue in guest mode</Button>
           </Link>
           <Link href="/feedback">
             <Button variant="outline">Join waitlist / updates</Button>

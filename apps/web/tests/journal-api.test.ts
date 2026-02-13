@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, createJournalEntryMock, enforceRateLimitMock, logRequestMock } = vi.hoisted(() => ({
-  getAuthSessionMock: vi.fn(),
+const { getActorMock, createJournalEntryMock, enforceRateLimitMock, logRequestMock } = vi.hoisted(() => ({
+  getActorMock: vi.fn(),
   createJournalEntryMock: vi.fn(),
   enforceRateLimitMock: vi.fn(),
   logRequestMock: vi.fn(),
 }));
 
-vi.mock('../lib/auth', () => ({
-  getAuthSession: getAuthSessionMock,
+vi.mock('../lib/actor', () => ({
+  getActor: getActorMock,
 }));
 
 vi.mock('../lib/journal', () => ({
@@ -29,7 +29,7 @@ describe('POST /api/journal', () => {
   });
 
   it('returns unauthorized when no session exists', async () => {
-    getAuthSessionMock.mockResolvedValueOnce(null);
+    getActorMock.mockResolvedValueOnce(null);
 
     const response = await POST(
       new Request('http://localhost/api/journal', {
@@ -42,7 +42,7 @@ describe('POST /api/journal', () => {
   });
 
   it('returns 429 when rate limit is exceeded', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    getActorMock.mockResolvedValueOnce({ actorId: 'user-1', kind: 'USER' });
     enforceRateLimitMock.mockResolvedValueOnce(new Response(null, { status: 429 }));
 
     const response = await POST(
@@ -57,7 +57,7 @@ describe('POST /api/journal', () => {
   });
 
   it('returns validation error for empty content', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    getActorMock.mockResolvedValueOnce({ actorId: 'user-1', kind: 'USER' });
 
     const response = await POST(
       new Request('http://localhost/api/journal', {
@@ -70,7 +70,7 @@ describe('POST /api/journal', () => {
   });
 
   it('creates a journal entry for valid input', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    getActorMock.mockResolvedValueOnce({ actorId: 'user-1', kind: 'USER' });
     createJournalEntryMock.mockResolvedValueOnce({
       id: 'entry-1',
       content: 'hello',

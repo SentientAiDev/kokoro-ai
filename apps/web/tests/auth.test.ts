@@ -1,18 +1,35 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../lib/prisma', () => ({
-  prisma: {},
-}));
+const mockedPrisma = {
+  user: {
+    upsert: vi.fn(),
+  },
+};
 
-import { authOptions } from '../lib/auth';
+vi.mock('../lib/prisma', () => ({ prisma: mockedPrisma }));
 
 describe('authOptions', () => {
-  it('uses email provider for magic links', () => {
-    expect(authOptions.providers).toBeDefined();
-    expect(authOptions.providers?.[0]?.id).toBe('email');
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.EMAIL_SERVER;
+    delete process.env.EMAIL_FROM;
+    process.env.DEV_AUTH_BYPASS = 'false';
   });
 
-  it('uses database sessions', () => {
-    expect(authOptions.session?.strategy).toBe('database');
+  it('enables email provider only when email env vars are set', async () => {
+    let auth = await import('../lib/auth');
+    expect(auth.authOptions.providers?.find((provider) => provider.id === 'email')).toBeUndefined();
+
+    vi.resetModules();
+    process.env.EMAIL_SERVER = 'smtp://localhost:1025';
+    process.env.EMAIL_FROM = 'test@example.com';
+    auth = await import('../lib/auth');
+
+    expect(auth.authOptions.providers?.find((provider) => provider.id === 'email')).toBeDefined();
+  });
+
+  it('uses database sessions', async () => {
+    const auth = await import('../lib/auth');
+    expect(auth.authOptions.session?.strategy).toBe('database');
   });
 });
