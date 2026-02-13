@@ -7,7 +7,21 @@ import { Textarea } from './ui/textarea';
 import { useToast } from './ui/toast';
 import { formatRetryHint, parseApiError } from '../lib/client/http';
 
-export function JournalEntryForm() {
+export function JournalEntryForm({
+  label = "Today's journal entry",
+  placeholder = 'What stood out today?',
+  rows = 8,
+  submitLabel = 'Save entry',
+  className,
+  hideLabel = false,
+}: {
+  label?: string;
+  placeholder?: string;
+  rows?: number;
+  submitLabel?: string;
+  className?: string;
+  hideLabel?: boolean;
+} = {}) {
   const router = useRouter();
   const { pushToast } = useToast();
   const [content, setContent] = useState('');
@@ -51,18 +65,16 @@ export function JournalEntryForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3">
-      <label htmlFor="journal-content" className="text-sm font-medium">
-        Today&apos;s journal entry
-      </label>
+    <form onSubmit={handleSubmit} className={className ?? 'grid gap-3'}>
+      <label htmlFor="journal-content" className={hideLabel ? "sr-only" : "text-sm font-medium"}>{label}</label>
       <Textarea
         id="journal-content"
         value={content}
         onChange={(event) => setContent(event.target.value)}
-        rows={8}
+        rows={rows}
         maxLength={4000}
         required
-        placeholder="What stood out today?"
+        placeholder={placeholder}
       />
       {error ? (
         <p role="alert" className="m-0 text-sm text-red-600">
@@ -70,7 +82,7 @@ export function JournalEntryForm() {
         </p>
       ) : null}
       <Button type="submit" disabled={isSaving} className="w-fit">
-        {isSaving ? 'Saving...' : 'Save entry'}
+        {isSaving ? 'Saving...' : submitLabel}
       </Button>
     </form>
   );
