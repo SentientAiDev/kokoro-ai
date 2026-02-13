@@ -1,10 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AppShell } from '../../components/app-shell';
-import { Card } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { OnboardingCard } from '../../components/onboarding-card';
-import { CheckInBanner } from '../../components/check-in-banner';
+import { JournalEntryForm } from '../../components/journal-entry-form';
 import { getAuthSession } from '../../lib/auth';
 import { prisma } from '../../lib/prisma';
 
@@ -23,16 +20,15 @@ type TodayDb = {
 
 const db = prisma as unknown as TodayDb;
 
-const prompts = [
-  'What felt meaningful today?',
-  'What deserves your attention next?',
-  'What small win do you want to remember?',
-  'What would make tomorrow 1% easier?',
+const entryPlaceholders = [
+  'What happened today?',
+  'What’s on your mind?',
+  'Talk to Kokoro…',
 ];
 
-function promptForToday() {
+function placeholderForToday() {
   const daySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-  return prompts[daySeed % prompts.length];
+  return entryPlaceholders[daySeed % entryPlaceholders.length];
 }
 
 function firstOpenLoop(openLoops: unknown) {
@@ -51,67 +47,62 @@ export default async function TodayPage() {
     redirect('/login');
   }
 
-  const [entryCount, latestSummary] = await Promise.all([
-    db.journalEntry.count({ where: { userId: session.user.id } }),
-    db.episodicSummary.findFirst({
+  const latestSummary = await db.episodicSummary.findFirst({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
       select: { summary: true, createdAt: true, openLoops: true },
-    }),
-  ]);
+    });
 
   const openLoop = firstOpenLoop(latestSummary?.openLoops);
+  const recap = latestSummary?.summary
+    ? latestSummary.summary.length > 180
+      ? `${latestSummary.summary.slice(0, 180)}…`
+      : latestSummary.summary
+    : null;
 
   return (
     <AppShell activePath="/today" userEmail={session.user.email}>
-      <section className="space-y-6">
-        <div className="space-y-2">
-          <h1>Today</h1>
-          <p className="text-sm text-muted-foreground">
-            Kokoro helps you capture your day in under two minutes so future-you remembers what matters.
+      <section className="space-y-12 py-8">
+        <header className="space-y-3 text-center">
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-900">Today</h1>
+          <p className="mx-auto max-w-xl text-sm leading-relaxed text-muted-foreground">
+            A calm space to capture the day as it unfolds.
           </p>
+        </header>
+
+        <div className="space-y-8">
+          <JournalEntryForm
+            label="Today's journal entry"
+            placeholder={placeholderForToday()}
+            rows={12}
+            submitLabel="Save to memory"
+            className="grid gap-4"
+            hideLabel
+          />
+
+          <div className="space-y-5 border-t border-slate-200 pt-6">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Gentle context</p>
+              {recap ? (
+                <p className="text-sm leading-relaxed text-slate-700">{recap}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Your first recap appears here after you write today.</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">One suggestion</p>
+              {openLoop ? (
+                <p className="text-sm leading-relaxed text-slate-700">{openLoop}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">No open loop yet. Keep writing and Kokoro will suggest one gentle next step.</p>
+              )}
+              <Link href="/memory" className="text-xs text-slate-500 underline-offset-4 hover:underline">
+                Why am I seeing this?
+              </Link>
+            </div>
+          </div>
         </div>
-
-        {entryCount === 0 ? <OnboardingCard /> : null}
-
-        <Card className="space-y-4 border-slate-200 bg-white shadow-sm">
-          <p className="text-sm font-medium text-slate-600">Your 2-minute loop</p>
-          <Link href="/journal" className="block">
-            <Button className="h-14 w-full text-base">Talk / Write to Kokoro</Button>
-          </Link>
-          <p className="text-sm text-muted-foreground">Today&apos;s prompt: {promptForToday()}</p>
-        </Card>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="space-y-2">
-            <h2 className="text-base">Yesterday&apos;s summary</h2>
-            {!latestSummary ? (
-              <p className="text-sm text-muted-foreground">No recap yet. Write your first entry to generate memory.</p>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground">{new Date(latestSummary.createdAt).toLocaleString()}</p>
-                <p className="text-sm">{latestSummary.summary}</p>
-              </>
-            )}
-          </Card>
-          <Card className="space-y-2">
-            <h2 className="text-base">Suggested next step</h2>
-            {!openLoop ? (
-              <p className="text-sm text-muted-foreground">
-                No open loop right now. Keep journaling and Kokoro will surface one gentle next step.
-              </p>
-            ) : (
-              <>
-                <p className="text-sm">{openLoop}</p>
-                <Link href="/journal" className="text-sm text-primary hover:underline">
-                  Capture progress in your journal
-                </Link>
-              </>
-            )}
-          </Card>
-        </div>
-
-        <CheckInBanner />
       </section>
     </AppShell>
   );
