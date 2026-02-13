@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '../../../lib/auth';
+import { getActor } from '../../../lib/actor';
 import { writePreferenceMemory } from '../../../lib/preference-memory';
 import {
   enforceRequestRateLimit,
@@ -11,17 +11,17 @@ import { writePreferenceMemorySchema } from '../../../lib/validation/preference-
 
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `preferences:write:${session.user.id}`,
+    key: `preferences:write:${actor.actorId}`,
     maxRequests: 20,
     windowMs: 60_000,
   });
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     const memory = await writePreferenceMemory({
       ...parsed.data,
-      userId: session.user.id,
+      userId: actor.actorId,
     });
 
     return NextResponse.json(
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    reportError({ event: 'preferences.write.failed', error, requestId, data: { userId: session.user.id } });
+    reportError({ event: 'preferences.write.failed', error, requestId, data: { userId: actor.actorId } });
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }

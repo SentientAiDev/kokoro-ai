@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '../../../lib/auth';
+import { getActor } from '../../../lib/actor';
 import { createJournalEntry } from '../../../lib/journal';
 import { reportError } from '../../../lib/infrastructure/error-reporting';
 import {
@@ -11,17 +11,17 @@ import { createJournalEntrySchema } from '../../../lib/validation/journal';
 
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `journal:create:${session.user.id}`,
+    key: `journal:create:${actor.actorId}`,
     maxRequests: 10,
     windowMs: 60_000,
   });
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const journalEntry = await createJournalEntry(session.user.id, parsed.data.content);
+    const journalEntry = await createJournalEntry(actor.actorId, parsed.data.content);
 
     return NextResponse.json(
       {
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    reportError({ event: 'journal.create.failed', error, requestId, data: { userId: session.user.id } });
+    reportError({ event: 'journal.create.failed', error, requestId, data: { userId: actor.actorId } });
     return NextResponse.json({ error: 'Unable to save your entry right now. Please try again.' }, { status: 500 });
   }
 }

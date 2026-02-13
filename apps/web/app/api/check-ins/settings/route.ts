@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAuthSession } from '../../../../lib/auth';
+import { getActor } from '../../../../lib/actor';
 import { getCheckInSettings, updateCheckInSettings } from '../../../../lib/check-ins';
 import { enforceRequestRateLimit, getRequestId, logRequest } from '../../../../lib/infrastructure/http';
 import { reportError } from '../../../../lib/infrastructure/error-reporting';
@@ -15,17 +15,17 @@ const settingsSchema = z.object({
 
 export async function GET(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `checkin:settings:read:${session.user.id}`,
+    key: `checkin:settings:read:${actor.actorId}`,
     maxRequests: 60,
     windowMs: 60_000,
   });
@@ -35,20 +35,20 @@ export async function GET(request: Request) {
   }
 
   try {
-    const settings = await getCheckInSettings(session.user.id);
+    const settings = await getCheckInSettings(actor.actorId);
     return NextResponse.json(settings, { status: 200 });
   } catch (error) {
-    reportError({ event: 'checkin.settings.read.failed', error, requestId, data: { userId: session.user.id } });
+    reportError({ event: 'checkin.settings.read.failed', error, requestId, data: { userId: actor.actorId } });
     return NextResponse.json({ error: 'Unable to load check-in settings right now. Please retry.' }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `checkin:settings:update:${session.user.id}`,
+    key: `checkin:settings:update:${actor.actorId}`,
     maxRequests: 20,
     windowMs: 60_000,
   });
@@ -83,10 +83,10 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const settings = await updateCheckInSettings(session.user.id, parsed.data);
+    const settings = await updateCheckInSettings(actor.actorId, parsed.data);
     return NextResponse.json(settings, { status: 200 });
   } catch (error) {
-    reportError({ event: 'checkin.settings.update.failed', error, requestId, data: { userId: session.user.id } });
+    reportError({ event: 'checkin.settings.update.failed', error, requestId, data: { userId: actor.actorId } });
     return NextResponse.json({ error: 'Unable to save settings right now. Please retry.' }, { status: 500 });
   }
 }

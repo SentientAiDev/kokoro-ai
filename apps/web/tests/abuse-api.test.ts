@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, enforceRateLimitMock, createMock, logRequestMock } = vi.hoisted(() => ({
-  getAuthSessionMock: vi.fn(),
+const { getActorMock, enforceRateLimitMock, createMock, logRequestMock } = vi.hoisted(() => ({
+  getActorMock: vi.fn(),
   enforceRateLimitMock: vi.fn(),
   createMock: vi.fn(),
   logRequestMock: vi.fn(),
 }));
 
-vi.mock('../lib/auth', () => ({
-  getAuthSession: getAuthSessionMock,
+vi.mock('../lib/actor', () => ({
+  getActor: getActorMock,
 }));
 
 vi.mock('../lib/infrastructure/http', () => ({
@@ -30,7 +30,7 @@ import { POST } from '../app/api/abuse/route';
 describe('POST /api/abuse', () => {
   beforeEach(() => {
     enforceRateLimitMock.mockResolvedValue(null);
-    getAuthSessionMock.mockResolvedValue(null);
+    getActorMock.mockResolvedValue(null);
   });
 
   it('validates payload', async () => {
@@ -46,7 +46,7 @@ describe('POST /api/abuse', () => {
   });
 
   it('creates abuse report', async () => {
-    getAuthSessionMock.mockResolvedValue({ user: { id: 'user-1' } });
+    getActorMock.mockResolvedValue({ actorId: 'user-1', kind: 'USER' });
     createMock.mockResolvedValue({ id: 'abuse-1', createdAt: new Date('2026-01-01T00:00:00.000Z') });
 
     const response = await POST(

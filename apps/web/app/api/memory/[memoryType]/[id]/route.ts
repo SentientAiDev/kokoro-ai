@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAuthSession } from '../../../../../lib/auth';
+import { getActor } from '../../../../../lib/actor';
 import { MemoryService } from '../../../../../lib/application/memory-service';
 import {
   enforceRequestRateLimit,
@@ -23,10 +23,10 @@ type RouteContext = {
 
 export async function DELETE(request: Request, context: RouteContext) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -39,7 +39,7 @@ export async function DELETE(request: Request, context: RouteContext) {
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `memory:delete:${session.user.id}`,
+    key: `memory:delete:${actor.actorId}`,
     maxRequests: 20,
     windowMs: 60_000,
   });
@@ -50,7 +50,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   try {
     const deleted = await MemoryService.deleteMemory({
-      userId: session.user.id,
+      userId: actor.actorId,
       memoryType: parsedParams.data.memoryType,
       id: parsedParams.data.id,
     });
@@ -65,7 +65,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       event: 'memory.delete.failed',
       error,
       requestId,
-      data: { userId: session.user.id, memoryType: parsedParams.data.memoryType, memoryId: parsedParams.data.id },
+      data: { userId: actor.actorId, memoryType: parsedParams.data.memoryType, memoryId: parsedParams.data.id },
     });
     return NextResponse.json({ error: 'Unable to delete memory right now. Please retry.' }, { status: 500 });
   }

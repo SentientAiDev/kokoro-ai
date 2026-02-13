@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '../../../lib/auth';
+import { getActor } from '../../../lib/actor';
 import { MemoryService } from '../../../lib/application/memory-service';
 import { enforceRequestRateLimit, getRequestId, logRequest } from '../../../lib/infrastructure/http';
 
 export async function DELETE(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `memory:bulk-delete:${session.user.id}`,
+    key: `memory:bulk-delete:${actor.actorId}`,
     maxRequests: 5,
     windowMs: 60_000,
   });
@@ -24,6 +24,6 @@ export async function DELETE(request: Request) {
     return rateLimitedResponse;
   }
 
-  const result = await MemoryService.deleteAllMemories(session.user.id);
+  const result = await MemoryService.deleteAllMemories(actor.actorId);
   return NextResponse.json(result, { status: 200 });
 }

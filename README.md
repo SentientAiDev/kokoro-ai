@@ -1,40 +1,24 @@
 # Kokoro Presence
 
-Kokoro Presence is a personal AI presence designed to feel continuous over time, not stateless from one chat to the next. Instead of only reacting in the moment, it builds memory through a simple loop: **journal -> episodic memory -> recall -> proactive check-ins**. The result is an assistant that can remember context over days and weeks while staying under user control.
+Kokoro Presence is a personal AI presence designed to feel continuous over time through a loop of **journal -> episodic memory -> recall -> proactive check-ins**.
 
-## Why this is different from a normal AI chatbot
+## Guest mode + optional auth
 
-Most chatbots are session-based: once the conversation ends, continuity is limited unless you manually repeat context. Kokoro is built around persistent, explicit memory with traceability. When it recalls something, it shows **"Why this memory?"**, and preference memory is stored only with consent.
+Authentication is optional by default. You can use all core product flows without signing in:
 
-## Key features
+- journaling
+- episodic memory + recall with “Why am I seeing this?”
+- settings
+- proactive check-ins
 
-- Daily interaction through journaling today (text now, voice soon)
-- Episodic memory summaries generated from journal entries
-- Memory recall with a visible **"Why this memory?"** explanation
-- Opt-in preference memory (never assumed)
-- Proactive but limited check-ins (user-configurable, off by default)
-- Full user control to review and delete stored memories
+Guest mode uses a signed, HttpOnly cookie (`kokoro_guest`) to maintain a stable device identity. Guest data is persisted server-side in Postgres under a guest user record, and can be upgraded to an account after login.
 
-## How it works
+### Environment flags
 
-1. You write (and soon talk) about your day.
-2. Kokoro extracts meaningful points from those interactions.
-3. It creates episodic memories and, when explicitly allowed, preference memories.
-4. Later, Kokoro can reference those memories in relevant moments and explain why they were recalled.
-
-## Privacy and control
-
-- No raw secret logging
-- Consent required before saving preference memory
-- Stored memories can be deleted anytime by the user
-
-## Project structure overview
-
-- `apps/web` — Next.js App Router frontend and API routes
-- `apps/web/prisma` — Prisma schema, migrations, and seed script
-- `packages/shared` — Shared TypeScript utilities/constants
-- `tests/e2e` — Playwright smoke tests
-- `docs` — Product and technical documentation
+- `AUTH_REQUIRED=false` — if `true`, authenticated sessions are required.
+- `DEV_AUTH_BYPASS=false` — enables dev-only credentials auth (never intended for production).
+- `E2E_ENABLED=false` — gates Playwright smoke execution in restricted envs.
+- Email auth is enabled only when both `EMAIL_SERVER` and `EMAIL_FROM` are set.
 
 ## Running locally
 
@@ -51,14 +35,3 @@ Useful checks:
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm e2e`
-
-> Prisma commands run in `apps/web`, so `apps/web/.env` must contain `DATABASE_URL` for migrate/seed to work.
-
-## Production deploy
-
-See [docs/launch-readiness.md](docs/launch-readiness.md) for:
-
-- Vercel deployment instructions
-- Neon/Supabase Postgres setup notes
-- Production checklist for env vars, auth, DB, and logging
-- `/api/health` verification

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAuthSession } from '../../../lib/auth';
+import { getActor } from '../../../lib/actor';
 import { MemoryService } from '../../../lib/application/memory-service';
 import {
   enforceRequestRateLimit,
@@ -15,17 +15,17 @@ const recallQuerySchema = z.object({
 
 export async function GET(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `recall:read:${session.user.id}`,
+    key: `recall:read:${actor.actorId}`,
     maxRequests: 30,
     windowMs: 60_000,
   });
@@ -42,10 +42,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const items = await MemoryService.recall(session.user.id, parsed.data.q);
+    const items = await MemoryService.recall(actor.actorId, parsed.data.q);
     return NextResponse.json({ items }, { status: 200 });
   } catch (error) {
-    reportError({ event: 'recall.read.failed', error, requestId, data: { userId: session.user.id } });
+    reportError({ event: 'recall.read.failed', error, requestId, data: { userId: actor.actorId } });
     return NextResponse.json({ error: 'Unable to load memory recall right now. Please try again.' }, { status: 500 });
   }
 }

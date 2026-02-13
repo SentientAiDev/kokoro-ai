@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAuthSession } from '../../../../lib/auth';
+import { getActor } from '../../../../lib/actor';
 import { deleteJournalEntry, updateJournalEntry } from '../../../../lib/journal';
 import {
   enforceRequestRateLimit,
@@ -14,10 +14,10 @@ const routeParamsSchema = z.object({ id: z.string().cuid() });
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -29,7 +29,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `journal:update:${session.user.id}`,
+    key: `journal:update:${actor.actorId}`,
     maxRequests: 10,
     windowMs: 60_000,
   });
@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       );
     }
 
-    const updated = await updateJournalEntry(parsedParams.data.id, session.user.id, parsed.data.content);
+    const updated = await updateJournalEntry(parsedParams.data.id, actor.actorId, parsed.data.content);
 
     if (!updated) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -57,17 +57,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
-    reportError({ event: 'journal.update.failed', error, requestId, data: { userId: session.user.id } });
+    reportError({ event: 'journal.update.failed', error, requestId, data: { userId: actor.actorId } });
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  if (!session?.user?.id) {
+  if (!actor?.actorId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -79,7 +79,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
-    key: `journal:delete:${session.user.id}`,
+    key: `journal:delete:${actor.actorId}`,
     maxRequests: 10,
     windowMs: 60_000,
   });
@@ -88,7 +88,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return rateLimitedResponse;
   }
 
-  const deleted = await deleteJournalEntry(parsedParams.data.id, session.user.id);
+  const deleted = await deleteJournalEntry(parsedParams.data.id, actor.actorId);
 
   if (!deleted) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });

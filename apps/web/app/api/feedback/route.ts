@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '../../../lib/auth';
+import { getActor } from '../../../lib/actor';
 import { prisma } from '../../../lib/prisma';
 import { reportError } from '../../../lib/infrastructure/error-reporting';
 import {
@@ -28,10 +28,10 @@ const db = prisma as unknown as FeedbackDb;
 
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
-  const session = await getAuthSession();
-  logRequest(request, requestId, session?.user?.id);
+  const actor = await getActor();
+  logRequest(request, requestId, actor?.actorId);
 
-  const keySuffix = session?.user?.id ?? request.headers.get('x-forwarded-for') ?? 'anonymous';
+  const keySuffix = actor?.actorId ?? request.headers.get('x-forwarded-for') ?? 'anonymous';
   const rateLimitedResponse = await enforceRequestRateLimit({
     request,
     requestId,
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
     const result = await db.feedbackMessage.create({
       data: {
-        userId: session?.user?.id ?? null,
+        userId: actor?.actorId ?? null,
         email: parsed.data.email ? redactText(parsed.data.email) : null,
         message: redactText(parsed.data.message),
         page: parsed.data.page,
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id: result.id, createdAt: result.createdAt }, { status: 201 });
   } catch (error) {
-    reportError({ event: 'feedback.create.failed', error, requestId, data: { hasSession: Boolean(session?.user?.id) } });
+    reportError({ event: 'feedback.create.failed', error, requestId, data: { hasSession: Boolean(actor?.actorId) } });
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }

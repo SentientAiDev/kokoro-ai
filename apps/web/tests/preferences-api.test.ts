@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getAuthSessionMock, writePreferenceMemoryMock, enforceRateLimitMock, logRequestMock } = vi.hoisted(() => ({
-  getAuthSessionMock: vi.fn(),
+const { getActorMock, writePreferenceMemoryMock, enforceRateLimitMock, logRequestMock } = vi.hoisted(() => ({
+  getActorMock: vi.fn(),
   writePreferenceMemoryMock: vi.fn(),
   enforceRateLimitMock: vi.fn(),
   logRequestMock: vi.fn(),
 }));
 
-vi.mock('../lib/auth', () => ({
-  getAuthSession: getAuthSessionMock,
+vi.mock('../lib/actor', () => ({
+  getActor: getActorMock,
 }));
 
 vi.mock('../lib/preference-memory', () => ({
@@ -29,7 +29,7 @@ describe('POST /api/preferences', () => {
   });
 
   it('returns unauthorized when no session exists', async () => {
-    getAuthSessionMock.mockResolvedValueOnce(null);
+    getActorMock.mockResolvedValueOnce(null);
 
     const response = await POST(
       new Request('http://localhost/api/preferences', {
@@ -42,7 +42,7 @@ describe('POST /api/preferences', () => {
   });
 
   it('returns 400 when consent is not explicitly true', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    getActorMock.mockResolvedValueOnce({ actorId: 'user-1', kind: 'USER' });
 
     const response = await POST(
       new Request('http://localhost/api/preferences', {
@@ -60,7 +60,7 @@ describe('POST /api/preferences', () => {
   });
 
   it('writes a preference when consent is present', async () => {
-    getAuthSessionMock.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    getActorMock.mockResolvedValueOnce({ actorId: 'user-1', kind: 'USER' });
     writePreferenceMemoryMock.mockResolvedValueOnce({
       id: 'pref-1',
       key: 'communication',
